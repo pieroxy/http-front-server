@@ -7,7 +7,7 @@ In this file you will find what is next for nullbird-hfs
   * Use nio servlets: https://www.oracle.com/webfolder/technetwork/tutorials/obe/java/HTML5andServlet31/HTML5andServlet%203.1.html
 * Raw performance
   * Support Brotli
-  * Support zstd (it it ever becomes supported by browsers)
+  * Support zstd (if it ever becomes supported by browsers)
 
 ## Functionality
 
