@@ -20,34 +20,43 @@ import java.util.logging.Logger;
 
 public class MainServlet extends HttpServlet {
   private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getSimpleName());
+  private static final Logger CONCURRENT_REQUESTS_LOGGER = Logger.getLogger("concurrentRequests");
   private static final ContentType HTML_UTF8 = ContentType.create("text/html", StandardCharsets.UTF_8);
   private final AtomicLong nbRequestsInFlight = new AtomicLong();
 
   @Override
   public void service(HttpServletRequest req, HttpServletResponse res) throws IOException {
-
-    // The following will prevent any matcher or action to "accidentally"
-    // read the body through a req.getParameter family of methods.
-    req.getInputStream();
-
-    HttpRequest request = new ServletHttpRequest(req);
-    HttpResponse response = new ServletHttpResponse(res);
-    Config config = ConfigReader.getConfig();
-    for (Rule rule : config.getRules()) {
-      if (rule.getMatcher().match(request)) {
-        try {
-          rule.getAction().run(request, response, rule.getMatcher());
-        } catch (Exception e) {
-          LOGGER.log(Level.SEVERE, request.getUrl(), e);
-        }
+    long cr = nbRequestsInFlight.incrementAndGet();
+    try {
+      if (CONCURRENT_REQUESTS_LOGGER.isLoggable(Level.FINE)) {
+        CONCURRENT_REQUESTS_LOGGER.fine("Concurrent requests: " + cr);
       }
-      if (response.isConsumed()) return;
+      // The following will prevent any matcher or action to "accidentally"
+      // read the body through a req.getParameter family of methods.
+      req.getInputStream();
+
+      HttpRequest request = new ServletHttpRequest(req);
+      HttpResponse response = new ServletHttpResponse(res);
+      Config config = ConfigReader.getConfig();
+      for (Rule rule : config.getRules()) {
+        if (rule.getMatcher().match(request)) {
+          try {
+            rule.getAction().run(request, response, rule.getMatcher());
+          } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, request.getUrl(), e);
+          }
+        }
+        if (response.isConsumed()) return;
+      }
+      LOGGER.log(Level.SEVERE, "The configuration doesn't have a rule for this request: " + req.getRequestURL());
+      response.respond(
+              HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+              HTML_UTF8,
+              "<html><body><h1>The configuration doesn't have a rule for this request.</h1></body></html>\r\n"
+      );
+
+    } finally {
+      nbRequestsInFlight.decrementAndGet();
     }
-    LOGGER.log(Level.SEVERE, "The configuration doesn't have a rule for this request: " + req.getRequestURL());
-    response.respond(
-            HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-            HTML_UTF8,
-            "<html><body><h1>The configuration doesn't have a rule for this request.</h1></body></html>\r\n"
-    );
   }
 }
