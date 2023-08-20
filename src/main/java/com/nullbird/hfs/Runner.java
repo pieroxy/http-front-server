@@ -22,7 +22,7 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 public class Runner {
-  private final static Logger LOGGER = Logger.getLogger(Runner.class.getName());
+  private final static Logger LOGGER;
   private final static String GIT_REV;
   private final static String MVN_VER;
   private final static String GIT_DEPTH;
@@ -31,6 +31,9 @@ public class Runner {
 
   static {
     birth = System.nanoTime();
+    System.setProperty("java.util.logging.manager", MyLogManager.class.getName());
+    LOGGER = Logger.getLogger(Runner.class.getName());
+
     GIT_REV = readResourceFileAsString("GIT_REV");
     MVN_VER = readResourceFileAsString("MVN_VER");
     GIT_DEPTH = readResourceFileAsString("GIT_DEPTH");
@@ -52,6 +55,9 @@ public class Runner {
     initLogging(null);
     LOGGER.info("Starting.");
     try {
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        Runner.shutdown();
+      }));
       String dataFolder = args[0];
       ConfigReader.init(dataFolder);
       run();
@@ -59,7 +65,7 @@ public class Runner {
       LOGGER.log(Level.SEVERE, "Something went very wrong", e);
       System.exit(1);
     }
-    LOGGER.info("Done.");
+    LOGGER.info("Exiting program.");
   }
 
   private static boolean portAlreadyTaken(int port) throws IOException {
@@ -118,7 +124,18 @@ public class Runner {
     return defaultLevel;
   }
 
+  // From https://stackoverflow.com/questions/13825403/java-how-to-get-logger-to-work-in-shutdown-hook
+  public static class MyLogManager extends LogManager {
+    static MyLogManager instance;
+    public MyLogManager() { instance = this; }
+    @Override public void reset() { /* don't reset yet. */ }
+    private void reset0() { super.reset(); }
+    public static void resetFinally() { instance.reset0(); }
+  }
+
+
   public static void initLogging(Config config) {
+
     // This is for Tomcat to not override the default Formatter
     System.setProperty("java.util.logging.config.file", "none");
 
@@ -173,6 +190,8 @@ public class Runner {
       LOGGER.log(Level.SEVERE, "Destroying Tomcat" + e);
     }
     LOGGER.log(Level.INFO, "Shutdown complete.");
+    MyLogManager.resetFinally();
+
   }
 
   private static Tomcat buildTomcat(Config config) {
@@ -188,7 +207,7 @@ public class Runner {
     tomcat.setConnector(ctr);
     ctr.addLifecycleListener(lifecycleEvent -> {
       if (lifecycleEvent.getType().equals(Lifecycle.AFTER_START_EVENT)) {
-        LOGGER.log(Level.INFO,  StringUtils.formatNanos(System.nanoTime() - Runner.birth) + " LB started");
+        LOGGER.log(Level.INFO,  StringUtils.formatNanos(System.nanoTime() - Runner.birth) + " nullbird-hfs started");
       }
     });
     if (StringUtils.containsNonWhitespace(config.getTomcatConfig().getAddress())) {
@@ -205,6 +224,9 @@ public class Runner {
   private static void addMainContext(Tomcat tomcat) {
     String contextPath = "";
     StandardContext ctx = (StandardContext) tomcat.addContext(contextPath, null);
+    ctx.setClearReferencesRmiTargets(false);
+    ctx.setClearReferencesObjectStreamClassCaches(false);
+    ctx.setClearReferencesThreadLocals(false);
 
     tomcat.addServlet(contextPath, "main", new MainServlet());
     ctx.addServletMappingDecoded("/*", "main");
