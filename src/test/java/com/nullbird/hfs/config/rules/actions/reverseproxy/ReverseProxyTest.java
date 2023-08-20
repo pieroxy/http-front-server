@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import utils.BeforeAllTests;
 import utils.TestRequest;
 import utils.TestResponse;
+import utils.testTomcat.TestServlet;
 import utils.testTomcat.TestTomcat;
 
 import java.io.PrintWriter;
@@ -29,19 +30,7 @@ public class ReverseProxyTest {
 
   @BeforeAll
   void startTomcat() throws Exception {
-    this.tomcat = new TestTomcat(12345, (req,res) -> {
-      PrintWriter writer = res.getWriter();
-      writer.println("OK");
-      writer.println("Method:" + req.getMethod());
-      writer.println("Body:" + StringUtils.getFromInputStream(req.getInputStream(), StandardCharsets.UTF_8));
-      writer.println("URL:" + req.getRequestURL());
-      writer.println("QS:" + req.getQueryString());
-      Collections.list(req.getHeaderNames()).stream().forEach(name -> {
-        Collections.list(req.getHeaders(name)).stream().forEach(value -> {
-          writer.println("Header::" + name + ": " + value);
-        });
-      });
-    });
+    this.tomcat = new TestTomcat(12345, new TestServlet());
   }
   @Test
   public void simpleGetTest() throws Exception {
