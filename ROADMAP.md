@@ -8,6 +8,8 @@ In this file you will find what is next for nullbird-hfs
 * Raw performance
   * Support Brotli
   * Support zstd (if it ever becomes supported by browsers)
+  * Support for HTTP/2 in the server
+  * Support for HTTP/2 in the reverse proxy
 
 ## Functionality
 
