@@ -15,20 +15,9 @@ public class Config {
   protected int defaultRedirectStatus = HttpServletResponse.SC_FOUND;
 
   /**
-   * Port this server should listen to for http requests. If not specified, the default value is <b>8080</b>
+   * The configuration related to the http server.
    */
-  protected int httpPort = 8080;
-
-  /**
-   * Port this server should listen to for https requests. If not specified, the default value is <b>8443</b>
-   */
-  protected int httpsPort = 8443;
-
-  /**
-   * Address the server should listen to. If not specified, the server will listen on all local addresses.
-   * @see <a href="https://tomcat.apache.org/tomcat-10.1-doc/config/http.html">Tomcat documentation</a>
-   */
-  protected String address;
+  protected TomcatConfig tomcatConfig = new TomcatConfig();
 
   /**
    * The level at which all loggers will be set. Defaults to <b>INFO</b> if not specified.
@@ -72,30 +61,6 @@ public class Config {
     this.defaultRedirectStatus = defaultRedirectStatus;
   }
 
-  public int getHttpPort() {
-    return httpPort;
-  }
-
-  public void setHttpPort(int httpPort) {
-    this.httpPort = httpPort;
-  }
-
-  public int getHttpsPort() {
-    return httpsPort;
-  }
-
-  public void setHttpsPort(int httpsPort) {
-    this.httpsPort = httpsPort;
-  }
-
-  public String getAddress() {
-    return address;
-  }
-
-  public void setAddress(String address) {
-    this.address = address;
-  }
-
   public String getDefaultLoggingLevel() {
     return defaultLoggingLevel;
   }
@@ -110,5 +75,13 @@ public class Config {
 
   public void setLoggersLevel(Map<String, String> loggersLevel) {
     this.loggersLevel = loggersLevel;
+  }
+
+  public TomcatConfig getTomcatConfig() {
+    return tomcatConfig;
+  }
+
+  public void setTomcatConfig(TomcatConfig tomcatConfig) {
+    this.tomcatConfig = tomcatConfig;
   }
 }

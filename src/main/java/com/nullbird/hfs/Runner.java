@@ -78,13 +78,13 @@ public class Runner {
     Config config = ConfigReader.getConfig();
     initLogging(config);
     LOGGER.log(Level.INFO, String.format("Starting version %s (build %s, #commit %s)", MVN_VER, GIT_REV, GIT_DEPTH));
-    if (portAlreadyTaken(config.getHttpPort())) {
-      LOGGER.severe("The port " + config.getHttpPort() + " is already taken.");
+    if (portAlreadyTaken(config.getTomcatConfig().getHttpPort())) {
+      LOGGER.severe("The port " + config.getTomcatConfig().getHttpPort() + " is already taken.");
       return;
     }
 
-    if (config.getHttpPort() <= 0)
-      throw new Exception("httpPort configured to an invalid value of " + config.getHttpPort());
+    if (config.getTomcatConfig().getHttpPort() <= 0)
+      throw new Exception("httpPort configured to an invalid value of " + config.getTomcatConfig().getHttpPort());
 
     LOGGER.info("Starting Tomcat");
 
@@ -184,15 +184,15 @@ public class Runner {
     }
 
     Connector ctr = new Connector();
-    ctr.setPort(config.getHttpPort());
+    ctr.setPort(config.getTomcatConfig().getHttpPort());
     tomcat.setConnector(ctr);
     ctr.addLifecycleListener(lifecycleEvent -> {
       if (lifecycleEvent.getType().equals(Lifecycle.AFTER_START_EVENT)) {
         LOGGER.log(Level.INFO,  StringUtils.formatNanos(System.nanoTime() - Runner.birth) + " LB started");
       }
     });
-    if (StringUtils.containsNonWhitespace(config.getAddress())) {
-      ctr.setProperty("address", config.getAddress());
+    if (StringUtils.containsNonWhitespace(config.getTomcatConfig().getAddress())) {
+      ctr.setProperty("address", config.getTomcatConfig().getAddress());
     }
     ctr.setProperty("compression", "on");
     ctr.setProperty("compressionMinSize", "512");
