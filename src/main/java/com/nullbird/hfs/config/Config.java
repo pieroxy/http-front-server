@@ -7,14 +7,54 @@ import java.util.List;
 import java.util.Map;
 
 public class Config {
-  private int defaultRedirectStatus = HttpServletResponse.SC_FOUND;
-  private int httpPort = 8080;
-  private int httpsPort = 8443;
-  private String address;
-  private String defaultLoggingLevel;
-  private Map<String, String> loggersLevel;
 
-  private List<Rule> rules;
+  /**
+   * Default status for redirections (See {@link com.nullbird.hfs.config.rules.actions.HttpRedirect}). This status can be
+   * overridden at the action level. If not specified, the default value is <b>302</b>
+   */
+  protected int defaultRedirectStatus = HttpServletResponse.SC_FOUND;
+
+  /**
+   * Port this server should listen to for http requests. If not specified, the default value is <b>8080</b>
+   */
+  protected int httpPort = 8080;
+
+  /**
+   * Port this server should listen to for https requests. If not specified, the default value is <b>8443</b>
+   */
+  protected int httpsPort = 8443;
+
+  /**
+   * Address the server should listen to. If not specified, the server will listen on all local addresses.
+   * @see <a href="https://tomcat.apache.org/tomcat-10.1-doc/config/http.html">Tomcat documentation</a>
+   */
+  protected String address;
+
+  /**
+   * The level at which all loggers will be set. Defaults to <b>INFO</b> if not specified.
+   * @see <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.logging/java/util/logging/Level.html">java.util.logging documentation</a>
+   */
+  protected String defaultLoggingLevel;
+
+  /**
+   * The level at which specific loggers will be set. Defaults to {@link Config#defaultLoggingLevel} if not specified.
+   * @see <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.logging/java/util/logging/Level.html">java.util.logging documentation</a>
+   * For example:
+   * <pre>
+   *   <code>
+   *     {
+   *       "com.nullbird.hfs.config.rules.actions.HttpRedirect":"FINE",
+   *       "com.nullbird.hfs.config.rules.actions.AddHttpHeader":"WARNING"
+   *     }
+   *   </code>
+   * </pre>
+   */
+  protected Map<String, String> loggersLevel;
+
+  /**
+   * The rules that will be run for each http request.
+   */
+  protected List<Rule> rules;
 
   public List<Rule> getRules() {
     return rules;
