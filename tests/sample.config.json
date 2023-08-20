@@ -1,0 +1,22 @@
+{
+  "loggersLevel": {
+    "com.nullbird.lb.http.ServletHttpResponse": "INFO",
+    "com.nullbird.lb.config.rules.actions.proxy.ReverseProxyResponseConsumer": "INFO"
+  },
+  "tomcatConfig": {
+    "httpPort": 12346,
+    "maxThreads": 3
+  },
+  "rules": [
+    {
+      "matcher": {
+        "type": "HostIs",
+        "host": "localhost"
+      },
+      "action": {
+        "type": "ReverseProxy",
+        "target": "http://localhost:12345"
+      }
+    }
+  ]
+}

@@ -17,6 +17,11 @@ public class TomcatConfig {
    */
   protected String address;
 
+  /**
+   * Used for testing purposes, you should not try to play with this unless you know what you're doing.
+   */
+  protected int maxThreads = 0;
+
   public int getHttpPort() {
     return httpPort;
   }
@@ -39,5 +44,13 @@ public class TomcatConfig {
 
   public void setAddress(String address) {
     this.address = address;
+  }
+
+  public int getMaxThreads() {
+    return maxThreads;
+  }
+
+  public void setMaxThreads(int maxThreads) {
+    this.maxThreads = maxThreads;
   }
 }

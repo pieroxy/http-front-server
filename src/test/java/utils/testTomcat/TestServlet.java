@@ -11,6 +11,10 @@ import java.util.Collections;
 public class TestServlet implements BasicServlet {
   @Override
   public void process(HttpServletRequest req, HttpServletResponse res) throws Exception {
+    String wait = req.getParameter("wait");
+    if (StringUtils.containsNonWhitespace(wait)) {
+      Thread.sleep(Integer.parseInt(wait));
+    }
     PrintWriter writer = res.getWriter();
     writer.println("OK");
     writer.println("Method:" + req.getMethod());

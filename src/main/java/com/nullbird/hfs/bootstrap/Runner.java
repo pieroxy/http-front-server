@@ -204,6 +204,10 @@ public class Runner {
 
     Connector ctr = new Connector();
     ctr.setPort(config.getTomcatConfig().getHttpPort());
+    if (config.getTomcatConfig().getMaxThreads()>0) {
+      LOGGER.info("Setting threads limit to " + config.getTomcatConfig().getMaxThreads());
+      ctr.setProperty("maxThreads", String.valueOf(config.getTomcatConfig().getMaxThreads()));
+    }
     tomcat.setConnector(ctr);
     ctr.addLifecycleListener(lifecycleEvent -> {
       if (lifecycleEvent.getType().equals(Lifecycle.AFTER_START_EVENT)) {

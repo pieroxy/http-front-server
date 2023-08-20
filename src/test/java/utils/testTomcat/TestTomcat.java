@@ -59,4 +59,8 @@ public class TestTomcat {
     } catch (LifecycleException e) {
     }
   }
+
+  public void await() {
+    tomcat.getServer().await();
+  }
 }
