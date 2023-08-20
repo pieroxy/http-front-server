@@ -13,7 +13,8 @@ Java written http server, which can:
 ## Requirements / Technical bits
 
 * Has been built with JDK 17
-* Uses Apache HttpClient 5 library under the hood
+* Uses Apache Tomcat 10
+* Uses Apache HttpClient 5 library under the hood for reverse proxying
 * The reverse proxy bits have been hugely influenced (and partly copied and pasted) from [David Smiley's own reverse proxy](https://github.com/mitre/HTTP-Proxy-Servlettiti) 
 
 ## Status
