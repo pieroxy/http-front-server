@@ -1,6 +1,6 @@
 package utils;
 
-import com.nullbird.hfs.Runner;
+import com.nullbird.hfs.bootstrap.Runner;
 import com.nullbird.hfs.config.Config;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;

@@ -1,4 +1,4 @@
-package com.nullbird.hfs;
+package com.nullbird.hfs.bootstrap;
 
 import com.nullbird.hfs.config.Config;
 import com.nullbird.hfs.config.ConfigReader;

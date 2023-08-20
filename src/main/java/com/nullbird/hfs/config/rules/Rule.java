@@ -12,6 +12,19 @@ public class Rule {
     action.initialize(config);
   }
 
+  public void close() {
+    try {
+      matcher.stop();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    try {
+      action.stop();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
   public RuleMatcher getMatcher() {
     return matcher;
   }

@@ -1,4 +1,4 @@
-package com.nullbird.hfs;
+package com.nullbird.hfs.bootstrap;
 
 import com.nullbird.hfs.config.Config;
 import com.nullbird.hfs.config.ConfigReader;
@@ -230,5 +230,6 @@ public class Runner {
 
     tomcat.addServlet(contextPath, "main", new MainServlet());
     ctx.addServletMappingDecoded("/*", "main");
+    ctx.addLifecycleListener(new MainLifecycleListener());
   }
 }
