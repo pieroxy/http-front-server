@@ -32,8 +32,7 @@ import java.util.logging.Logger;
 /**
  * This class is experiments I do to test the HttpClient
  */
-@Disabled
-public class HttpClientTest {
+public class HttpClientExperiments {
   private final Logger LOGGER = Logger.getLogger(this.getClass().getName());
 
   @Test
