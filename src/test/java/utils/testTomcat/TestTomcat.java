@@ -1,4 +1,4 @@
-package com.nullbird.hfs.config.rules.actions.reverseproxy;
+package utils.testTomcat;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -11,7 +11,7 @@ import org.apache.catalina.startup.Tomcat;
 
 import java.io.File;
 
-class TestTomcat {
+public class TestTomcat {
   static int counter;
   Tomcat tomcat;
 

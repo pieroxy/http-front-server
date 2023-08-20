@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import utils.BeforeAllTests;
 import utils.TestRequest;
 import utils.TestResponse;
+import utils.testTomcat.TestTomcat;
 
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;

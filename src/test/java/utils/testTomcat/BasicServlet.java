@@ -1,8 +1,8 @@
-package com.nullbird.hfs.config.rules.actions.reverseproxy;
+package utils.testTomcat;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-interface BasicServlet {
+public interface BasicServlet {
   void process(HttpServletRequest req, HttpServletResponse resp) throws Exception;
 }
