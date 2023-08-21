@@ -10,7 +10,8 @@ public class ParallelImplementationCheck {
     for(int i=0 ; i<10 ; i++) {
       threads[i] = new Thread(() -> {
         try {
-          String content = HttpGet.run("http://localhost:12346/test?wait=10000");
+          String content = HttpGet.run("http://localhost:12346/test?wait=1000&loops=10");
+          System.out.println(content);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
