@@ -2,8 +2,6 @@ In this file you will find what is next for nullbird-hfs
 
 ## Performance
 
-* Work against thread starvation, that should minimize footprint at high load while allowing higher loads:
-  * Use nio servlets: https://www.oracle.com/webfolder/technetwork/tutorials/obe/java/HTML5andServlet31/HTML5andServlet%203.1.html
 * Raw performance
   * Support Brotli
   * Support zstd (if it ever becomes supported by browsers)
@@ -16,6 +14,7 @@ In this file you will find what is next for nullbird-hfs
   * Build a `And`, `Not` and a `Or` matcher
   * Build a `ContainsCookie` matcher
 * Actions
+  * Multiple Action (That holds a list of actions, ex: Set a cookie & redirect)
 * https
   * Handle directly certbot to update https certs
   * More sane default options to the https stack (actually build a https stack)
