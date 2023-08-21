@@ -14,7 +14,6 @@ In this file you will find what is next for nullbird-hfs
 
 * Matchers
   * [Hi] Build a `And`, `Not` and a `Or` matcher
-  * [Top] Build a `ContainsCookie` matcher
 * Actions
   * [Med] Multiple Action (That holds a list of actions, ex: Set a cookie & redirect)
 * https
