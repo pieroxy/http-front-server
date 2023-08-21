@@ -4,9 +4,8 @@ import com.nullbird.hfs.config.Config;
 import com.nullbird.hfs.config.ConfigReader;
 import com.nullbird.hfs.config.rules.Rule;
 import com.nullbird.hfs.http.HttpRequest;
-import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.http.ServletHttpRequest;
-import com.nullbird.hfs.http.ServletHttpResponse;
+import com.nullbird.hfs.utils.StringUtils;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,8 +52,7 @@ public class MainServlet extends HttpServlet {
       request.getResponse().respond(
               HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
               HTML_UTF8,
-              "<html><body><h1>The configuration doesn't have a rule for this request.</h1></body></html>\r\n"
-      );
+              StringUtils.getHtmlErrorMessage("The configuration doesn't have a rule for this request."));
 
     } finally {
       nbRequestsInFlight.decrementAndGet();

@@ -55,4 +55,8 @@ public class StringUtils {
       }
       return out.toString(charset);
   }
+
+  public static String getHtmlErrorMessage(String message) {
+        return "<html><body><h1>"+message+"</h1></body></html>\r\n";
+  }
 }

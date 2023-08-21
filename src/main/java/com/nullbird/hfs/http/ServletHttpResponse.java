@@ -8,6 +8,7 @@ import org.apache.hc.core5.http.ContentType;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,6 +17,7 @@ public class ServletHttpResponse implements HttpResponse {
   private final HttpServletResponse response;
   private boolean consumed = false;
   private final AsyncContext asyncContext;
+  private Future<Void> future;
 
   protected ServletHttpResponse(HttpServletResponse response) {
     this.response = response;
@@ -52,6 +54,11 @@ public class ServletHttpResponse implements HttpResponse {
   public void setStatus(int statusCode) {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("setStatus("+statusCode+")");
     response.setStatus(statusCode);
+  }
+
+  @Override
+  public int getStatus() {
+    return response.getStatus();
   }
 
   @Override
@@ -102,4 +109,16 @@ public class ServletHttpResponse implements HttpResponse {
     return response;
   }
 
+  @Override
+  public Future<Void> getFuture() {
+    return future;
+  }
+
+  @Override
+  public void setFuture(Future<Void> future) {
+    this.future = future;
+    synchronized (this) {
+      this.notifyAll();
+    }
+  }
 }

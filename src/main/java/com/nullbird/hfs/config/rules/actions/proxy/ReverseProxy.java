@@ -77,16 +77,7 @@ public class ReverseProxy implements RuleAction {
             proxyRequest,
             new ReverseProxyResponseConsumer(asyncResponse, debugString)
             ,null);
-      //TODO Put the following somewhere else
-      /*future.get();
-    } catch (ExecutionException e) {
-      if (e.getCause() instanceof HttpHostConnectException) {
-        LOGGER.severe("Host could not be reached (" + debugString + ")");
-      } else if (e.getCause() instanceof SocketTimeoutException) {
-        LOGGER.warning("Request timed out (" + debugString + ")");
-      } else {
-        throw new ProxyException(e);
-      }*/
+      asyncResponse.setFuture(future);
     } catch (Exception e) {
       throw new ProxyException(e);
     }

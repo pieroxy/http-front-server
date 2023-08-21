@@ -1,7 +1,13 @@
 package com.nullbird.hfs.config.rules.actions.reverseproxy;
 
 import com.nullbird.hfs.config.rules.actions.proxy.ReverseProxy;
-import org.junit.jupiter.api.*;
+import com.nullbird.hfs.config.rules.actions.proxy.ReverseProxyResponseConsumer;
+import com.nullbird.hfs.utils.HashTools;
+import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import utils.BeforeAllTests;
 import utils.TestRequest;
@@ -93,6 +99,21 @@ public class ReverseProxyTest {
     );
     assertEquals("method:post", lines.get(1));
     assertEquals("body:this is the body of the request.", lines.get(2));
+  }
+
+  @Test
+  public void simpleBadHostTest() throws Exception {
+    var action = new ReverseProxy();
+    action.setTarget("http://A_" + HashTools.getRandomSequence(100));
+    action.initialize(null);
+    var req = TestRequest.fromUrl("http://test.domain.com");
+    action.run(req, req.getResponse(), null);
+    waitOnResponse(req);
+
+    assertEquals(HttpServletResponse.SC_BAD_GATEWAY, req.getResponse().getStatus());
+    List<String> lines = Stream.of(new String(req.getResponse().getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
+            .map(String::toLowerCase).toList();
+    assertTrue(lines.get(0).contains(ReverseProxyResponseConsumer.MSG_BAD_GATEWAY.toLowerCase()));
   }
 
   @AfterAll

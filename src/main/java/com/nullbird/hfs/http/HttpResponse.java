@@ -6,6 +6,7 @@ import org.apache.hc.core5.http.ContentType;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.concurrent.Future;
 
 public interface HttpResponse {
   void sendRedirect(int statusCode, String targetUrl);
@@ -17,10 +18,14 @@ public interface HttpResponse {
   void addHeader(String name, String value);
 
   void setStatus(int statusCode);
+  int getStatus();
 
   OutputStream getOutputStream() throws IOException;
 
   void doneProcessing();
 
   void consume();
+
+  void setFuture(Future<Void> future);
+  Future<Void> getFuture();
 }
