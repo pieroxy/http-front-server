@@ -18,6 +18,8 @@ public class TestResponse implements HttpResponse {
   Map<String, Cookie> cookies = new HashMap<>();
   boolean consumed;
   ByteArrayOutputStream body = new ByteArrayOutputStream();
+  Object toNotifyOnCompletion=null;
+  boolean processingCompleted;
 
   @Override
   public void sendRedirect(int statusCode, String targetUrl) {
@@ -65,6 +67,12 @@ public class TestResponse implements HttpResponse {
 
   @Override
   public void doneProcessing() {
+    processingCompleted = true;
+    if (toNotifyOnCompletion!=null) {
+      synchronized (toNotifyOnCompletion) {
+        toNotifyOnCompletion.notifyAll();
+      }
+    }
   }
 
   @Override
@@ -89,5 +97,13 @@ public class TestResponse implements HttpResponse {
   }
   public Cookie getCookie(String name) {
     return cookies.get(name);
+  }
+
+  public void setToNotifyOnCompletion(Object toNotifyOnCompletion) {
+    this.toNotifyOnCompletion = toNotifyOnCompletion;
+  }
+
+  public boolean isProcessingCompleted() {
+    return processingCompleted;
   }
 }

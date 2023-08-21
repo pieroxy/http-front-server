@@ -5,7 +5,6 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import utils.BeforeAllTests;
 import utils.TestRequest;
-import utils.TestResponse;
 import utils.testTomcat.TestServlet;
 import utils.testTomcat.TestTomcat;
 
@@ -16,8 +15,6 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-//TODO Re-enable that
-@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith({BeforeAllTests.class})
 public class ReverseProxyTest {
@@ -32,25 +29,41 @@ public class ReverseProxyTest {
     var action = new ReverseProxy();
     action.setTarget("http://localhost:12345");
     action.initialize(null);
-    var response = new TestResponse();
-    action.run(TestRequest.fromUrl("http://iii"), response, null);
-    assertEquals(200, response.getStatus());
-    List<String> lines = Stream.of(new String(response.getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
+    var request = TestRequest.fromUrl("http://iii");
+    request.getResponse().setToNotifyOnCompletion(this);
+    action.run(request, request.getResponse(), null);
+    waitOnResponse(request);
+    assertEquals(200, request.getResponse().getStatus());
+    List<String> lines = Stream.of(new String(request.getResponse().getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
             .map(String::toLowerCase).toList();
     assertEquals("ok", lines.get(0));
     assertTrue(lines.contains("header::host: iii"));
     assertEquals("method:get", lines.get(1));
     assertEquals("url:http://iii/", lines.get(3));
   }
+
+  private void waitOnResponse(TestRequest request) {
+    synchronized(this) {
+      while (true) {
+        try {
+          this.wait(1000);
+        } catch (Exception e) {
+        }
+        if (request.getResponse().isProcessingCompleted()) break;
+      }
+    }
+  }
+
   @Test
   public void uriGetTest() throws Exception {
     var action = new ReverseProxy();
     action.setTarget("http://localhost:12345");
     action.initialize(null);
-    var response = new TestResponse();
-    action.run(TestRequest.fromUrl("http://iii/this/is/the/uri?toto=2"), response, null);
-    assertEquals(200, response.getStatus());
-    List<String> lines = Stream.of(new String(response.getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
+    var request = TestRequest.fromUrl("http://iii/this/is/the/uri?toto=2");
+    action.run(request, request.getResponse(), null);
+    waitOnResponse(request);
+    assertEquals(200, request.getResponse().getStatus());
+    List<String> lines = Stream.of(new String(request.getResponse().getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
             .map(String::toLowerCase).toList();
     assertEquals("ok", lines.get(0));
     assertTrue(lines.contains("header::host: iii"));
@@ -63,13 +76,13 @@ public class ReverseProxyTest {
     var action = new ReverseProxy();
     action.setTarget("http://localhost:12345");
     action.initialize(null);
-    var response = new TestResponse();
     var req = TestRequest.fromUrl("http://test.domain.com");
     req.setMethod("POST");
     req.setBodyAsByteArray("This is the body of the request.".getBytes(StandardCharsets.UTF_8));
-    action.run(req, response, null);
-    assertEquals(200, response.getStatus());
-    List<String> lines = Stream.of(new String(response.getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
+    action.run(req, req.getResponse(), null);
+    waitOnResponse(req);
+    assertEquals(200, req.getResponse().getStatus());
+    List<String> lines = Stream.of(new String(req.getResponse().getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
             .map(String::toLowerCase).toList();
     //lines.forEach(System.out::println);
     assertEquals("ok", lines.get(0));

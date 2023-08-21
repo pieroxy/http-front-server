@@ -171,7 +171,7 @@ public class TestRequest implements HttpRequest {
   }
 
   @Override
-  public HttpResponse getResponse() {
+  public TestResponse getResponse() {
     return response;
   }
 
