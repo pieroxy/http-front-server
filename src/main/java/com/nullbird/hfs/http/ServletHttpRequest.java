@@ -2,8 +2,10 @@ package com.nullbird.hfs.http;
 
 import com.nullbird.hfs.utils.StreamUtils;
 import com.nullbird.hfs.utils.UtilityCollectors;
+import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -18,10 +20,12 @@ public class ServletHttpRequest implements HttpRequest {
   private final static Logger LOGGER = Logger.getLogger(ServletHttpRequest.class.getName());
 
   private final HttpServletRequest request;
+  private ServletHttpResponse response;
   private String url = null;
 
-  public ServletHttpRequest(HttpServletRequest request) {
+  public ServletHttpRequest(HttpServletRequest request, HttpServletResponse response) {
     this.request = request;
+    this.response = new ServletHttpResponse(response);
   }
 
   public String getMethod() {
@@ -106,5 +110,16 @@ public class ServletHttpRequest implements HttpRequest {
             .filter(cookie -> Objects.equals(cookie.getName(), name))
             .collect(UtilityCollectors.getOneItemOrNull());
     return c == null ? null : c.getValue();
+  }
+
+  @Override
+  public HttpResponse getAsyncResponse(HttpResponse syncResponse) {
+    final AsyncContext asyncContext = request.startAsync(request, ((ServletHttpResponse)syncResponse).getHttpServletResponse());
+    return response = new ServletHttpResponse((HttpServletResponse) asyncContext.getResponse(), asyncContext);
+  }
+
+
+  public ServletHttpResponse getResponse() {
+    return response;
   }
 }

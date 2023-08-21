@@ -64,7 +64,7 @@ public class TestResponse implements HttpResponse {
   }
 
   @Override
-  public void flush() {
+  public void doneProcessing() {
   }
 
   @Override

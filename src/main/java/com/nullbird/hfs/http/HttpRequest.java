@@ -22,4 +22,9 @@ public interface HttpRequest {
   String getPath();
 
   InputStream getBodyStream() throws IOException;
+
+  HttpResponse getAsyncResponse(HttpResponse syncResponse);
+
+  HttpResponse getResponse();
+
 }

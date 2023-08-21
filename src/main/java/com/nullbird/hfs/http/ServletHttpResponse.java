@@ -1,5 +1,6 @@
 package com.nullbird.hfs.http;
 
+import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.ContentType;
@@ -14,9 +15,17 @@ public class ServletHttpResponse implements HttpResponse {
   private final static Logger LOGGER = Logger.getLogger(ServletHttpResponse.class.getName());
   private final HttpServletResponse response;
   private boolean consumed = false;
+  private final AsyncContext asyncContext;
 
-  public ServletHttpResponse(HttpServletResponse response) {
+  protected ServletHttpResponse(HttpServletResponse response) {
     this.response = response;
+    asyncContext = null;
+  }
+
+  public ServletHttpResponse(HttpServletResponse response, AsyncContext asyncContext) {
+    this.response = response;
+    this.asyncContext = asyncContext;
+    this.consumed = true; // AsyncContext means we're in the game.
   }
 
   public void sendRedirect(int statusCode, String targetUrl) {
@@ -53,10 +62,15 @@ public class ServletHttpResponse implements HttpResponse {
   }
 
   @Override
-  public void flush() {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("flush()");
+  public void doneProcessing() {
     try {
-      response.flushBuffer();
+      //response.flushBuffer();
+    } catch (Exception e) {
+      // What can we do really ?
+    }
+    try {
+      if (asyncContext!=null)
+        asyncContext.complete();
     } catch (Exception e) {
       // What can we do really ?
     }
@@ -83,4 +97,9 @@ public class ServletHttpResponse implements HttpResponse {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("addHeader("+name+","+value+")");
     response.addHeader(name, value);
   }
+
+  HttpServletResponse getHttpServletResponse() {
+    return response;
+  }
+
 }

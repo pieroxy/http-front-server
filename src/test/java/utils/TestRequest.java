@@ -1,6 +1,7 @@
 package utils;
 
 import com.nullbird.hfs.http.HttpRequest;
+import com.nullbird.hfs.http.HttpResponse;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.net.URIBuilder;
 
@@ -22,6 +23,11 @@ public class TestRequest implements HttpRequest {
   String remoteAddr = "127.0.0.1";
   String scheme;
   byte[]bodyAsByteArray;
+  TestResponse response;
+
+  public TestRequest() {
+    response = new TestResponse();
+  }
 
   public static TestRequest fromUrl(String url) {
     var res = new TestRequest();
@@ -158,4 +164,15 @@ public class TestRequest implements HttpRequest {
     this.bodyAsByteArray = bodyAsByteArray;
     headers.put(HttpHeaders.CONTENT_LENGTH, List.of(String.valueOf(bodyAsByteArray.length)));
   }
+
+  @Override
+  public HttpResponse getAsyncResponse(HttpResponse syncResponse) {
+    return syncResponse;
+  }
+
+  @Override
+  public HttpResponse getResponse() {
+    return response;
+  }
+
 }

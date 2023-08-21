@@ -7,6 +7,7 @@ import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.http.ServletHttpRequest;
 import com.nullbird.hfs.http.ServletHttpResponse;
+import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+@WebServlet(urlPatterns = "/*", asyncSupported = true)
 public class MainServlet extends HttpServlet {
   private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getSimpleName());
   private static final Logger CONCURRENT_REQUESTS_LOGGER = Logger.getLogger("concurrentRequests");
@@ -35,21 +37,20 @@ public class MainServlet extends HttpServlet {
       // read the body through a req.getParameter family of methods.
       req.getInputStream();
 
-      HttpRequest request = new ServletHttpRequest(req);
-      HttpResponse response = new ServletHttpResponse(res);
+      HttpRequest request = new ServletHttpRequest(req, res);
       Config config = ConfigReader.getConfig();
       for (Rule rule : config.getRules()) {
         if (rule.getMatcher().match(request)) {
           try {
-            rule.getAction().run(request, response, rule.getMatcher());
+            rule.getAction().run(request, request.getResponse(), rule.getMatcher());
           } catch (Exception e) {
             LOGGER.log(Level.SEVERE, request.getUrl(), e);
           }
         }
-        if (response.isConsumed()) return;
+        if (request.getResponse().isConsumed()) return;
       }
       LOGGER.log(Level.SEVERE, "The configuration doesn't have a rule for this request: " + req.getRequestURL());
-      response.respond(
+      request.getResponse().respond(
               HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
               HTML_UTF8,
               "<html><body><h1>The configuration doesn't have a rule for this request.</h1></body></html>\r\n"

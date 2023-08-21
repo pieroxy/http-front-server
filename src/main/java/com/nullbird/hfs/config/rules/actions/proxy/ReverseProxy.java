@@ -8,7 +8,6 @@ import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.StringUtils;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 import com.nullbird.hfs.utils.errors.ProxyException;
-import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
@@ -19,14 +18,10 @@ import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.nio.support.AsyncRequestBuilder;
 import org.apache.hc.core5.io.CloseMode;
-import org.apache.hc.core5.reactor.IOReactorConfig;
-import org.apache.hc.core5.util.Timeout;
 
 import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.Enumeration;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -77,11 +72,13 @@ public class ReverseProxy implements RuleAction {
     if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Executing request " + debugString);
     var proxyClient = __proxyClient;
     try {
+      HttpResponse asyncResponse = request.getAsyncResponse(response);
       final Future<Void> future = proxyClient.execute(
             proxyRequest,
-            new ReverseProxyResponseConsumer(response, debugString)
+            new ReverseProxyResponseConsumer(asyncResponse, debugString)
             ,null);
-      future.get();
+      //TODO Put the following somewhere else
+      /*future.get();
     } catch (ExecutionException e) {
       if (e.getCause() instanceof HttpHostConnectException) {
         LOGGER.severe("Host could not be reached (" + debugString + ")");
@@ -89,7 +86,7 @@ public class ReverseProxy implements RuleAction {
         LOGGER.warning("Request timed out (" + debugString + ")");
       } else {
         throw new ProxyException(e);
-      }
+      }*/
     } catch (Exception e) {
       throw new ProxyException(e);
     }

@@ -20,7 +20,7 @@ public interface HttpResponse {
 
   OutputStream getOutputStream() throws IOException;
 
-  void flush();
+  void doneProcessing();
 
   void consume();
 }

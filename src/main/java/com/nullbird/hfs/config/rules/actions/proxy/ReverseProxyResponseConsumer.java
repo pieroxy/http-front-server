@@ -82,6 +82,12 @@ class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Void> {
 
   @Override
   public void releaseResources() {
+    try {
+      response.doneProcessing();
+    } catch (Exception e) {
+      // What can we do, really ?
+    }
+
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing completed: " + debugInfo);
     // The two below statements do break havoc on the whole thing. I need to refresh my knowledge of
     // apache httpcient 5
