@@ -3,7 +3,6 @@ In this file you will find what is next for nullbird-hfs
 ## Performance
 
 * Work against thread starvation, that should minimize footprint at high load while allowing higher loads:
-  * Use async servlets: https://docs.oracle.com/javaee/7/tutorial/servlets012.htm
   * Use nio servlets: https://www.oracle.com/webfolder/technetwork/tutorials/obe/java/HTML5andServlet31/HTML5andServlet%203.1.html
 * Raw performance
   * Support Brotli
