@@ -29,11 +29,6 @@ public class TomcatBuilder {
       ctr.setProperty("maxThreads", String.valueOf(config.getTomcatConfig().getMaxThreads()));
     }
     tomcat.setConnector(ctr);
-    ctr.addLifecycleListener(lifecycleEvent -> {
-      if (lifecycleEvent.getType().equals(Lifecycle.AFTER_START_EVENT)) {
-        LOGGER.log(Level.INFO,  StringUtils.formatNanos(System.nanoTime() - Runner.birth) + " nullbird-hfs started");
-      }
-    });
     if (StringUtils.containsNonWhitespace(config.getTomcatConfig().getAddress())) {
       ctr.setProperty("address", config.getTomcatConfig().getAddress());
     }
@@ -41,6 +36,11 @@ public class TomcatBuilder {
     ctr.setProperty("compressionMinSize", "512");
     ctr.setProperty("compressibleMimeType", "text/html, text/css, application/javascript, image/svg+xml, application/json");
 
+    tomcat.getServer().addLifecycleListener(lifecycleEvent -> {
+      if (lifecycleEvent.getType().equals(Lifecycle.AFTER_START_EVENT)) {
+        LOGGER.log(Level.INFO,  StringUtils.formatNanos(System.nanoTime() - Runner.birth) + " nullbird-hfs started");
+      }
+    });
     addMainContext(tomcat);
     return tomcat;
   }
