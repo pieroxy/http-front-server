@@ -2,10 +2,7 @@ package com.nullbird.hfs.utils.parsing;
 
 import com.google.gson.*;
 import com.nullbird.hfs.config.rules.RuleMatcher;
-import com.nullbird.hfs.config.rules.matchers.ContainsCookie;
-import com.nullbird.hfs.config.rules.matchers.HostIs;
-import com.nullbird.hfs.config.rules.matchers.URLRegexpMatcher;
-import com.nullbird.hfs.config.rules.matchers.URLSubstringMatcher;
+import com.nullbird.hfs.config.rules.matchers.*;
 
 import java.lang.reflect.Type;
 
@@ -27,6 +24,12 @@ public class RuleMatcherDeserializer  implements JsonDeserializer<RuleMatcher> {
           return jsonDeserializationContext.deserialize(jsonElement, HostIs.class);
         case "ContainsCookie":
           return jsonDeserializationContext.deserialize(jsonElement, ContainsCookie.class);
+        case "And":
+          return jsonDeserializationContext.deserialize(jsonElement, And.class);
+        case "Not":
+          return jsonDeserializationContext.deserialize(jsonElement, Not.class);
+        case "Or":
+          return jsonDeserializationContext.deserialize(jsonElement, Or.class);
         default:
           throw new RuntimeException("Unknown rule matcher node type " + nodeType);
       }
