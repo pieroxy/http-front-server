@@ -14,38 +14,41 @@ import java.util.logging.Logger;
 public class TomcatBuilder {
   private final static Logger LOGGER = Logger.getLogger(TomcatBuilder.class.getName());
 
-  Tomcat buildTomcat(Config config) {
-    Tomcat tomcat = new Tomcat();
+  private final Tomcat tomcat = new Tomcat();
 
+  Tomcat buildTomcat(Config config) {
     String tempDir = System.getProperty("java.io.tmpdir");
     if (tempDir!=null) {
       tomcat.setBaseDir(tempDir + File.separator + "nullbirdLbTomcat");
     }
+    tomcat.getServer().addLifecycleListener(lifecycleEvent -> {
+      if (lifecycleEvent.getType().equals(Lifecycle.AFTER_START_EVENT)) {
+        LOGGER.log(Level.INFO,  StringUtils.formatNanos(System.nanoTime() - Runner.birth) + " nullbird-hfs started");
+      }
+    });
 
+    addHttpConnector(config);
+    addMainContext();
+    return tomcat;
+  }
+
+  void addHttpConnector(Config config) {
     Connector ctr = new Connector();
     ctr.setPort(config.getTomcatConfig().getHttpPort());
     if (config.getTomcatConfig().getMaxThreads()>0) {
-      LOGGER.info("Setting threads limit to " + config.getTomcatConfig().getMaxThreads());
+      LOGGER.warning("Setting threads limit to " + config.getTomcatConfig().getMaxThreads());
       ctr.setProperty("maxThreads", String.valueOf(config.getTomcatConfig().getMaxThreads()));
     }
-    tomcat.setConnector(ctr);
     if (StringUtils.containsNonWhitespace(config.getTomcatConfig().getAddress())) {
       ctr.setProperty("address", config.getTomcatConfig().getAddress());
     }
     ctr.setProperty("compression", "on");
     ctr.setProperty("compressionMinSize", "512");
     ctr.setProperty("compressibleMimeType", "text/html, text/css, application/javascript, image/svg+xml, application/json");
-
-    tomcat.getServer().addLifecycleListener(lifecycleEvent -> {
-      if (lifecycleEvent.getType().equals(Lifecycle.AFTER_START_EVENT)) {
-        LOGGER.log(Level.INFO,  StringUtils.formatNanos(System.nanoTime() - Runner.birth) + " nullbird-hfs started");
-      }
-    });
-    addMainContext(tomcat);
-    return tomcat;
+    tomcat.setConnector(ctr);
   }
 
-  private static void addMainContext(Tomcat tomcat) {
+  private void addMainContext() {
     String contextPath = "";
     StandardContext ctx = (StandardContext) tomcat.addContext(contextPath, null);
     ctx.setClearReferencesRmiTargets(false);
