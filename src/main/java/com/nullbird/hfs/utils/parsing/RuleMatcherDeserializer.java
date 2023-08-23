@@ -30,6 +30,8 @@ public class RuleMatcherDeserializer  implements JsonDeserializer<RuleMatcher> {
           return jsonDeserializationContext.deserialize(jsonElement, Not.class);
         case "Or":
           return jsonDeserializationContext.deserialize(jsonElement, Or.class);
+        case "All":
+          return jsonDeserializationContext.deserialize(jsonElement, All.class);
         default:
           throw new RuntimeException("Unknown rule matcher node type " + nodeType);
       }
