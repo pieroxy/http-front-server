@@ -1,11 +1,13 @@
 package com.nullbird.hfs.bootstrap;
 
 import com.nullbird.hfs.config.Config;
+import com.nullbird.hfs.config.TomcatConfig;
 import com.nullbird.hfs.utils.StringUtils;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.catalina.valves.AccessLogValve;
 
 import java.io.File;
 import java.util.logging.Level;
@@ -28,7 +30,7 @@ public class TomcatBuilder {
     });
 
     addHttpConnector(config);
-    addMainContext();
+    addMainContext(config.getTomcatConfig());
     return tomcat;
   }
 
@@ -48,7 +50,7 @@ public class TomcatBuilder {
     tomcat.setConnector(ctr);
   }
 
-  private void addMainContext() {
+  private void addMainContext(TomcatConfig tomcatConfig) {
     String contextPath = "";
     StandardContext ctx = (StandardContext) tomcat.addContext(contextPath, null);
     ctx.setClearReferencesRmiTargets(false);
@@ -58,5 +60,14 @@ public class TomcatBuilder {
     tomcat.addServlet(contextPath, "main", new MainServlet());
     ctx.addServletMappingDecoded("/*", "main");
     ctx.addLifecycleListener(new MainLifecycleListener());
+    if (tomcatConfig!=null && tomcatConfig.getHttpLogConfig()!=null) {
+      var httpLog = tomcatConfig.getHttpLogConfig();
+      AccessLogValve accessLogValve = new AccessLogValve();
+      accessLogValve.setDirectory(httpLog.getDirectory());
+      accessLogValve.setPattern(httpLog.getPattern());
+      accessLogValve.setSuffix(httpLog.getSuffix());
+      accessLogValve.setPrefix(httpLog.getPrefix());
+      ctx.addValve(accessLogValve);
+    }
   }
 }

@@ -18,6 +18,11 @@ public class TomcatConfig {
   protected String address;
 
   /**
+   * The http log configuration. If not set, no http access logs will be produced.
+   */
+  protected TomcatHttpLogConfig httpLogConfig;
+
+  /**
    * Used for testing purposes, you should not try to play with this unless you know what you're doing.
    */
   protected int maxThreads = 0;
@@ -52,5 +57,13 @@ public class TomcatConfig {
 
   public void setMaxThreads(int maxThreads) {
     this.maxThreads = maxThreads;
+  }
+
+  public TomcatHttpLogConfig getHttpLogConfig() {
+    return httpLogConfig;
+  }
+
+  public void setHttpLogConfig(TomcatHttpLogConfig httpLogConfig) {
+    this.httpLogConfig = httpLogConfig;
   }
 }

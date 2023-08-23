@@ -5,7 +5,13 @@
   },
   "tomcatConfig": {
     "httpPort": 12346,
-    "maxThreads": 3
+    "maxThreads": 3,
+    "httpLogConfig":{
+	    "directory":"/tmp/",
+	    "prefix":"test",
+	    "suffix":".log",
+	    "pattern":"combined"
+    }
   },
   "rules": [
     {
