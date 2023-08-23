@@ -17,6 +17,7 @@ public class ServletHttpResponse implements HttpResponse {
   private final HttpServletResponse response;
   private boolean consumed = false;
   private final AsyncContext asyncContext;
+  private int status = 0;
   private Future<Void> future;
 
   protected ServletHttpResponse(HttpServletResponse response) {
@@ -53,12 +54,12 @@ public class ServletHttpResponse implements HttpResponse {
   @Override
   public void setStatus(int statusCode) {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("setStatus("+statusCode+")");
-    response.setStatus(statusCode);
+    response.setStatus(this.status = statusCode);
   }
 
   @Override
   public int getStatus() {
-    return response.getStatus();
+    return status;
   }
 
   @Override

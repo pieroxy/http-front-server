@@ -92,19 +92,30 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
     }
   }
 
+  private void markResponseComplete() {
+    try {
+      response.doneProcessing();
+    } catch (Exception e) {
+      // What can we do, really ?
+    }
+
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing completed: " + debugInfo);
+
+  }
   @Override
   public void releaseResources() {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Request " + debugInfo + " finished");
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Request " + debugInfo + " finished with status " + response.getStatus());
     if (response.getStatus() == 0) {
       new Thread(() -> {
         try {
           int loop = 0;
-          while(response.getFuture() == null) {
-            if (loop++>1000) break;
+          while (response.getFuture() == null) {
+            if (loop++ > 1000) break;
             synchronized (response) {
               try {
                 response.wait(35);
-              } catch (Exception e) {}
+              } catch (Exception e) {
+              }
             }
           }
           if (response.getFuture() == null) {
@@ -150,17 +161,13 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
                   HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                   ContentType.TEXT_HTML,
                   StringUtils.getHtmlErrorMessage(MSG_INTERNAL_ERROR));
+        } finally {
+          markResponseComplete();
         }
       }).start();
-
+    } else {
+      markResponseComplete();
     }
-    try {
-      response.doneProcessing();
-    } catch (Exception e) {
-      // What can we do, really ?
-    }
-
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing completed: " + debugInfo);
     // The two below statements do break havoc on the whole thing. I need to refresh my knowledge of
     // apache httpcient 5
     //ExceptionCatcher.flush(response);
