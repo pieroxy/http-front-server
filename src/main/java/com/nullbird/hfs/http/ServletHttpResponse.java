@@ -122,4 +122,8 @@ public class ServletHttpResponse implements HttpResponse {
       this.notifyAll();
     }
   }
+
+  public boolean hasAsyncContext() {
+    return asyncContext!=null;
+  }
 }

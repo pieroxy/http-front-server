@@ -114,6 +114,7 @@ public class ServletHttpRequest implements HttpRequest {
 
   @Override
   public HttpResponse getAsyncResponse(HttpResponse syncResponse) {
+    if (response.hasAsyncContext()) return response;
     final AsyncContext asyncContext = request.startAsync(request, ((ServletHttpResponse)syncResponse).getHttpServletResponse());
     return response = new ServletHttpResponse((HttpServletResponse) asyncContext.getResponse(), asyncContext);
   }
