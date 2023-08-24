@@ -1,0 +1,86 @@
+{
+  "tomcatConfig": {
+    "httpPort": 8080,
+    "sslConfig": {
+      "port": 8443,
+      "prot_comment": "TLS 1.1 is not considered secure anymore, removing it.",
+      "protocols": "TLSv1.2,TLSv1.3",
+      "ciphers_comment": "Below the most secure ciphers, bringing reasonable compatibility.",
+      "ciphers": "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
+      "cert_comment": "The following three properties illustrate how Tomcat can work with Let's Encrypt certificates",
+      "certificateFile": "/where/my/heys/are/cert.pem",
+      "certificateKeyFile": "/where/my/heys/are/privkey.pem",
+      "certificateChainFile": "/where/my/heys/are/chain.pem"
+    },
+    "httpLogConfig": {
+      "comment": "This will generate an http access log, similar to httpd",
+      "directory": "/where/the/http/logs/should/go",
+      "prefix": "access_log_www_hfs.",
+      "suffix": ".log",
+      "pattern": "combined"
+    }
+  },
+  "rules": [
+    {
+      "comment": "HSTS will let the browsers know your websites should be only accessed through https, never through http",
+      "matcher": {
+        "type": "All"
+      },
+      "action": {
+        "type": "AddHttpHeader",
+        "name": "Strict-Transport-Security",
+        "value": "max-age=63072000; preload"
+      }
+    },
+    {
+      "comment": "Better safe than sorry, upgrade every http request to https anyways.",
+      "matcher": {
+        "type": "URLSubstringMatcher",
+        "pattern": "http://",
+        "startsWith": true
+      },
+      "action": {
+        "type": "HttpRedirect",
+        "target": "https://",
+        "substring": true
+      }
+    },
+    {
+      "comment": "Let's add an extra layer of security for this endpoint. It's not really secure (passwords in clear text) but it is one more layer of security to breach for an attacker.",
+      "matcher": {
+        "type": "URLSubstringMatcher",
+        "pattern": "/wp-login.php",
+        "startsWith": false
+      },
+      "action": {
+        "type": "BasicAuthenticate",
+        "credentials": {
+          "mylogin": "mypassword"
+        }
+      }
+    },
+    {
+      "comment": "This is a service hosted on the local machine",
+      "matcher": {
+        "type": "HostIs",
+        "host": "my.main.domain.com"
+      },
+      "action": {
+        "type": "ReverseProxy",
+        "target": "http://localhost:12345"
+      }
+    },
+    {
+      "comment": "All other URLs should go to another host",
+      "matcher": {
+        "type": "All"
+      },
+      "action": {
+        "type": "ReverseProxy",
+        "target": "http://some-server-on-my-LAN:12345"
+      }
+    }
+  ]
+}
+
+
