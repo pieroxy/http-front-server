@@ -3,6 +3,8 @@ package com.nullbird.hfs.config.rules.actions.proxy;
 import com.nullbird.hfs.http.HttpResponse;
 import org.apache.hc.core5.http.nio.AsyncRequestProducer;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class ReverseProxyHttpRequest {
   private final AsyncRequestProducer requestProducer;
   private final ReverseProxyResponseConsumer responseConsumer;
@@ -13,6 +15,7 @@ public class ReverseProxyHttpRequest {
   private final String destinationDebugString;
 
   private String debugInfos;
+  private AtomicInteger attemptNo = new AtomicInteger();
 
   public ReverseProxyHttpRequest(AsyncRequestProducer requestProducer, ReverseProxyResponseConsumer responseConsumer, ReverseProxy proxy, HttpResponse asyncResponse, String sourceDebugString, String destinationDebugString) {
     this.requestProducer = requestProducer;
@@ -45,5 +48,17 @@ public class ReverseProxyHttpRequest {
 
   public HttpResponse getAsyncResponse() {
     return asyncResponse;
+  }
+
+  public int getAttemptNo() {
+    return attemptNo.get();
+  }
+  public int incAttemptNo() {
+    return attemptNo.getAndIncrement();
+  }
+
+  public void run() {
+    incAttemptNo();
+    proxy.tryExecute(this);
   }
 }

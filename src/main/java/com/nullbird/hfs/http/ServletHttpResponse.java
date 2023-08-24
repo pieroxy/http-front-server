@@ -71,6 +71,7 @@ public class ServletHttpResponse implements HttpResponse {
 
   @Override
   public void doneProcessing() {
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("doneProcessing()");
     try {
       //response.flushBuffer();
     } catch (Exception e) {

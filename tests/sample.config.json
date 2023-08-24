@@ -31,6 +31,8 @@
       },
       "action": {
         "type": "ReverseProxy",
+        "maxRetries":10,
+        "retriesEveryMs":1000,
         "target": "http://localhost:12345"
       }
     }

@@ -16,9 +16,12 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -106,6 +109,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
   }
   @Override
   public void releaseResources() {
+    AtomicBoolean initiatedRetry = new AtomicBoolean(false);
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Request " + requestData.getDebugInfos() + " finished with status " + response.getStatus());
     if (response.getStatus() == 0) {
       new Thread(() -> {
@@ -131,9 +135,42 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
             response.getFuture().get(0, TimeUnit.MICROSECONDS);
           }
         } catch (ExecutionException e) {
-          if (e.getCause() instanceof HttpHostConnectException ||
-                  e.getCause() instanceof UnknownHostException) {
-            LOGGER.warning("Host could not be reached (" + requestData.getDebugInfos() + ")");
+          if (e.getCause() instanceof HttpHostConnectException) {
+            if (requestData.getProxy().getMaxRetries() > 0 &&
+                    requestData.getProxy().getRetriesEveryMs() > 0) {
+              if (requestData.getProxy().getMaxRetries() < requestData.getAttemptNo()) {
+                LOGGER.warning("Host could not be reached after retries (" + requestData.getDebugInfos() + ")");
+                response.respond(
+                        HttpServletResponse.SC_BAD_GATEWAY,
+                        ContentType.TEXT_HTML,
+                        StringUtils.getHtmlErrorMessage(MSG_BAD_GATEWAY));
+
+              } else {
+                final var timer = new Timer();
+                timer.schedule(
+                        new TimerTask() {
+                          @Override
+                          public void run() {
+                            requestData.run();
+                            timer.cancel();
+                          }
+                        },
+                        requestData.getProxy().getRetriesEveryMs()
+                );
+                initiatedRetry.set(true);
+                return;
+              }
+
+
+            } else {
+              LOGGER.warning("Host could not be reached (" + requestData.getDebugInfos() + ")");
+              response.respond(
+                      HttpServletResponse.SC_BAD_GATEWAY,
+                      ContentType.TEXT_HTML,
+                      StringUtils.getHtmlErrorMessage(MSG_BAD_GATEWAY));
+            }
+          } else if (e.getCause() instanceof UnknownHostException) {
+            LOGGER.log(Level.WARNING, "Host could not be reached (" + requestData.getDebugInfos() + "): "+ e.getMessage());
             response.respond(
                     HttpServletResponse.SC_BAD_GATEWAY,
                     ContentType.TEXT_HTML,
@@ -164,7 +201,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
                   ContentType.TEXT_HTML,
                   StringUtils.getHtmlErrorMessage(MSG_INTERNAL_ERROR));
         } finally {
-          markResponseComplete();
+          if (!initiatedRetry.get()) markResponseComplete();
         }
       }).start();
     } else {

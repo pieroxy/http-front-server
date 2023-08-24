@@ -32,6 +32,9 @@ public class ReverseProxy implements RuleAction {
   private String target;
   private boolean doForwardIP = true;
 
+  private int maxRetries = 0;
+  private int retriesEveryMs = 0;
+
 
   private transient HttpHost proxyHost;
   private transient CloseableHttpAsyncClient __proxyClient;
@@ -69,16 +72,16 @@ public class ReverseProxy implements RuleAction {
     }
     try {
       HttpResponse asyncResponse = request.getAsyncResponse(response);
-      tryExecute(new ReverseProxyHttpRequest(
+      new ReverseProxyHttpRequest(
               proxyRequest,
               new ReverseProxyResponseConsumer(asyncResponse),
-              this, asyncResponse, request.getUrl(), proxyHost.toString()));
+              this, asyncResponse, request.getUrl(), proxyHost.toString()).run();
     } catch (Exception e) {
       throw new ProxyException(e);
     }
   }
 
-  private void tryExecute(ReverseProxyHttpRequest request) {
+  void tryExecute(ReverseProxyHttpRequest request) {
     final Future<Void> future = this.__proxyClient.execute(
             request.getRequestProducer(),
             request.getResponseConsumer(),
@@ -211,6 +214,22 @@ public class ReverseProxy implements RuleAction {
 
   public void setDoForwardIP(boolean doForwardIP) {
     this.doForwardIP = doForwardIP;
+  }
+
+  public int getMaxRetries() {
+    return maxRetries;
+  }
+
+  public void setMaxRetries(int maxRetries) {
+    this.maxRetries = maxRetries;
+  }
+
+  public int getRetriesEveryMs() {
+    return retriesEveryMs;
+  }
+
+  public void setRetriesEveryMs(int retriesEveryMs) {
+    this.retriesEveryMs = retriesEveryMs;
   }
 }
 
