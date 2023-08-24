@@ -31,11 +31,6 @@ public class ReverseProxy implements RuleAction {
 
   private String target;
   private boolean doForwardIP = true;
-  private boolean doSendUrlFragment = true;
-  private int connectTimeout = -1;
-  private int readTimeout = -1;
-  private int connectionRequestTimeout = -1;
-  private int maxConnections = -1;
 
 
   private transient HttpHost proxyHost;
@@ -217,47 +212,5 @@ public class ReverseProxy implements RuleAction {
   public void setDoForwardIP(boolean doForwardIP) {
     this.doForwardIP = doForwardIP;
   }
-
-  public boolean isDoSendUrlFragment() {
-    return doSendUrlFragment;
-  }
-
-  public void setDoSendUrlFragment(boolean doSendUrlFragment) {
-    this.doSendUrlFragment = doSendUrlFragment;
-  }
-
-  public int getConnectTimeout() {
-    return connectTimeout;
-  }
-
-  public void setConnectTimeout(int connectTimeout) {
-    this.connectTimeout = connectTimeout;
-  }
-
-  public int getReadTimeout() {
-    return readTimeout;
-  }
-
-  public void setReadTimeout(int readTimeout) {
-    this.readTimeout = readTimeout;
-  }
-
-  public int getConnectionRequestTimeout() {
-    return connectionRequestTimeout;
-  }
-
-  public void setConnectionRequestTimeout(int connectionRequestTimeout) {
-    this.connectionRequestTimeout = connectionRequestTimeout;
-  }
-
-  public int getMaxConnections() {
-    return maxConnections;
-  }
-
-  public void setMaxConnections(int maxConnections) {
-    this.maxConnections = maxConnections;
-  }
-
-
 }
 
