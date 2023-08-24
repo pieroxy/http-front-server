@@ -70,17 +70,23 @@ public class ReverseProxy implements RuleAction {
     var proxyRequest = proxyRequestBuilder.build();
     String debugString = request.getUrl() + " >> " + proxyHost.toString();
     if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Executing request " + debugString);
-    var proxyClient = __proxyClient;
     try {
       HttpResponse asyncResponse = request.getAsyncResponse(response);
-      final Future<Void> future = proxyClient.execute(
-            proxyRequest,
-            new ReverseProxyResponseConsumer(asyncResponse, debugString)
-            ,null);
-      asyncResponse.setFuture(future);
+      tryExecute(new ReverseProxyHttpRequest(
+              proxyRequest,
+              new ReverseProxyResponseConsumer(asyncResponse, debugString),
+              this, asyncResponse));
     } catch (Exception e) {
       throw new ProxyException(e);
     }
+  }
+
+  private void tryExecute(ReverseProxyHttpRequest request) {
+    final Future<Void> future = this.__proxyClient.execute(
+            request.getRequestProducer(),
+            request.getResponseConsumer(),
+            null);
+     request.getAsyncResponse().setFuture(future);
   }
 
   private void setXForwardedHeaders(HttpRequest request, AsyncRequestBuilder proxyRequestBuilder) {
