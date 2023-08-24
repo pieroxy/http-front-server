@@ -7,11 +7,6 @@ public class TomcatConfig {
   protected int httpPort = 8080;
 
   /**
-   * Port this server should listen to for https requests. If not specified, the default value is <b>8443</b>
-   */
-  protected int httpsPort = 8443;
-
-  /**
    * Address the server should listen to. If not specified, the server will listen on all local addresses.
    * @see <a href="https://tomcat.apache.org/tomcat-10.1-doc/config/http.html">Tomcat documentation</a>
    */
@@ -27,6 +22,11 @@ public class TomcatConfig {
    */
   protected int maxThreads = 0;
 
+  /**
+   * The https configuration. Mandatory if you want https configured.
+   */
+  protected TomcatSslConfig sslConfig;
+
   public int getHttpPort() {
     return httpPort;
   }
@@ -35,13 +35,6 @@ public class TomcatConfig {
     this.httpPort = httpPort;
   }
 
-  public int getHttpsPort() {
-    return httpsPort;
-  }
-
-  public void setHttpsPort(int httpsPort) {
-    this.httpsPort = httpsPort;
-  }
 
   public String getAddress() {
     return address;
@@ -57,6 +50,14 @@ public class TomcatConfig {
 
   public void setMaxThreads(int maxThreads) {
     this.maxThreads = maxThreads;
+  }
+
+  public TomcatSslConfig getSslConfig() {
+    return sslConfig;
+  }
+
+  public void setSslConfig(TomcatSslConfig sslConfig) {
+    this.sslConfig = sslConfig;
   }
 
   public TomcatHttpLogConfig getHttpLogConfig() {
