@@ -9,11 +9,26 @@ public class ReverseProxyHttpRequest {
   private final ReverseProxy proxy;
   private final HttpResponse asyncResponse;
 
-  public ReverseProxyHttpRequest(AsyncRequestProducer requestProducer, ReverseProxyResponseConsumer responseConsumer, ReverseProxy proxy, HttpResponse asyncResponse) {
+  private final String sourceDebugString;
+  private final String destinationDebugString;
+
+  private String debugInfos;
+
+  public ReverseProxyHttpRequest(AsyncRequestProducer requestProducer, ReverseProxyResponseConsumer responseConsumer, ReverseProxy proxy, HttpResponse asyncResponse, String sourceDebugString, String destinationDebugString) {
     this.requestProducer = requestProducer;
     this.responseConsumer = responseConsumer;
     this.proxy = proxy;
     this.asyncResponse = asyncResponse;
+    this.sourceDebugString = sourceDebugString;
+    this.destinationDebugString = destinationDebugString;
+    responseConsumer.setRequestData(this);
+  }
+
+  public String getDebugInfos() {
+    if (debugInfos == null) {
+      debugInfos = sourceDebugString + " >> " + destinationDebugString;
+    }
+    return debugInfos;
   }
 
   public AsyncRequestProducer getRequestProducer() {

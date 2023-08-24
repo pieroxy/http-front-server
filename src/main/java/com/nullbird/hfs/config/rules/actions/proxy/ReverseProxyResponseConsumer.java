@@ -29,28 +29,30 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
   public final static String MSG_BAD_GATEWAY = "The proxy could not reach the backend server. Logs will provide more details.";
   public final static String MSG_GATEWAY_TIMEOUT = "The backend server timed out.";
   private final HttpResponse response;
-  private final String debugInfo;
   private WritableByteChannel __channel;
+
+  private ReverseProxyHttpRequest requestData;
 
   private WritableByteChannel getChannel() throws IOException {
     if (__channel==null) __channel = Channels.newChannel(response.getOutputStream());
     return __channel;
   }
 
-  public ReverseProxyResponseConsumer(HttpResponse response, String debugInfo) {
+  public ReverseProxyResponseConsumer(HttpResponse response) {
     this.response = response;
-    this.debugInfo = debugInfo;
   }
+
+
 
   @Override
   protected void start(org.apache.hc.core5.http.HttpResponse httpResponse, ContentType contentType) {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing started: " +debugInfo + " // First line: " + new StatusLine(httpResponse));
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing started: " +requestData.getDebugInfos() + " // First line: " + new StatusLine(httpResponse));
     Arrays.stream(httpResponse.getHeaders()).forEach(h -> LOGGER.finer(h.toString()));
     int statusCode = httpResponse.getCode();
     response.setStatus(statusCode);
 
     copyResponseHeaders(httpResponse, response);
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing of headers completed: " +debugInfo);
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing of headers completed: " +requestData.getDebugInfos());
   }
 
   protected void copyResponseHeaders(org.apache.hc.core5.http.HttpResponse proxyResponse,
@@ -87,7 +89,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
   @Override
   protected void data(ByteBuffer data, boolean endOfStream) throws IOException {
     while (data.hasRemaining()) {
-      if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Transferring body: " + debugInfo + " Chunk of " + data.remaining() + "bytes");
+      if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Transferring body: " + requestData.getDebugInfos() + " Chunk of " + data.remaining() + "bytes");
       getChannel().write(data);
     }
   }
@@ -99,12 +101,12 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
       // What can we do, really ?
     }
 
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing completed: " + debugInfo);
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing completed: " + requestData.getDebugInfos());
 
   }
   @Override
   public void releaseResources() {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Request " + debugInfo + " finished with status " + response.getStatus());
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Request " + requestData.getDebugInfos() + " finished with status " + response.getStatus());
     if (response.getStatus() == 0) {
       new Thread(() -> {
         try {
@@ -131,19 +133,19 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
         } catch (ExecutionException e) {
           if (e.getCause() instanceof HttpHostConnectException ||
                   e.getCause() instanceof UnknownHostException) {
-            LOGGER.warning("Host could not be reached (" + debugInfo + ")");
+            LOGGER.warning("Host could not be reached (" + requestData.getDebugInfos() + ")");
             response.respond(
                     HttpServletResponse.SC_BAD_GATEWAY,
                     ContentType.TEXT_HTML,
                     StringUtils.getHtmlErrorMessage(MSG_BAD_GATEWAY));
           } else if (e.getCause() instanceof SocketTimeoutException) {
-            LOGGER.warning("Request timed out (" + debugInfo + ")");
+            LOGGER.warning("Request timed out (" + requestData.getDebugInfos() + ")");
             response.respond(
                     HttpServletResponse.SC_GATEWAY_TIMEOUT,
                     ContentType.TEXT_HTML,
                     StringUtils.getHtmlErrorMessage(MSG_GATEWAY_TIMEOUT));
           } else {
-            LOGGER.log(Level.SEVERE, "Request errored out (" + debugInfo + ")", e);
+            LOGGER.log(Level.SEVERE, "Request errored out (" + requestData.getDebugInfos() + ")", e);
             response.respond(
                     HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     ContentType.TEXT_HTML,
@@ -172,5 +174,13 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
     // apache httpcient 5
     //ExceptionCatcher.flush(response);
     //ExceptionCatcher.close(__channel);
+  }
+
+  public ReverseProxyHttpRequest getRequestData() {
+    return requestData;
+  }
+
+  public void setRequestData(ReverseProxyHttpRequest requestData) {
+    this.requestData = requestData;
   }
 }

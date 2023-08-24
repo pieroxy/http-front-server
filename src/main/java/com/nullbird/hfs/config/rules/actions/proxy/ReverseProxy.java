@@ -68,14 +68,16 @@ public class ReverseProxy implements RuleAction {
 
   private void doExecute(HttpRequest request, HttpResponse response, AsyncRequestBuilder proxyRequestBuilder) throws ProxyException {
     var proxyRequest = proxyRequestBuilder.build();
-    String debugString = request.getUrl() + " >> " + proxyHost.toString();
-    if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Executing request " + debugString);
+    if (LOGGER.isLoggable(Level.FINE)) {
+      String debugString = request.getUrl() + " >> " + proxyHost.toString();
+      LOGGER.fine("Executing request " + debugString);
+    }
     try {
       HttpResponse asyncResponse = request.getAsyncResponse(response);
       tryExecute(new ReverseProxyHttpRequest(
               proxyRequest,
-              new ReverseProxyResponseConsumer(asyncResponse, debugString),
-              this, asyncResponse));
+              new ReverseProxyResponseConsumer(asyncResponse),
+              this, asyncResponse, request.getUrl(), proxyHost.toString()));
     } catch (Exception e) {
       throw new ProxyException(e);
     }
