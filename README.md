@@ -19,4 +19,10 @@ Java written http server, which can:
 
 ## Status
 
-* In development.
+* Stable.
+* Features in development.
+
+## Links
+
+* [The roadmap](doc/ROADMAP.md)
+* Documentation to come
