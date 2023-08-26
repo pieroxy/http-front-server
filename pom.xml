@@ -5,7 +5,7 @@
 
   <groupId>com.nullbird.hfs</groupId>
   <artifactId>nullbird-hfs</artifactId>
-  <version>1.0</version>
+  <version>1.0.1</version>
 
   <name>hfs</name>
 
@@ -13,7 +13,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
-    
+
     <tomcat.version>10.1.13</tomcat.version>
     <gson.version>2.10.1</gson.version>
     <httpclient5.version>5.2.1</httpclient5.version>
