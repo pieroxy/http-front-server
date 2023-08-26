@@ -1,4 +1,4 @@
-package com.nullbird.hfs.config.rules;
+package com.nullbird.hfs.utils.config;
 
 import com.nullbird.hfs.http.HttpRequest;
 

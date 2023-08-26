@@ -1,7 +1,7 @@
 package com.nullbird.hfs.bootstrap;
 
 import com.nullbird.hfs.config.Config;
-import com.nullbird.hfs.config.ConfigReader;
+import com.nullbird.hfs.utils.config.ConfigReader;
 import com.nullbird.hfs.utils.logging.GcLogging;
 import com.nullbird.hfs.utils.logging.SingleLineFormatter;
 import org.apache.catalina.LifecycleException;

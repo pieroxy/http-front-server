@@ -1,6 +1,6 @@
 package utils;
 
-import com.nullbird.hfs.config.rules.RuleMatcher;
+import com.nullbird.hfs.utils.config.RuleMatcher;
 import utils.matchers.DumbOddMatcher;
 
 import java.util.List;

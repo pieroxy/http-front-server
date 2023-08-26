@@ -1,8 +1,7 @@
-package com.nullbird.hfs.config.rules.actions.proxy;
+package com.nullbird.hfs.http.proxy;
 
 import com.nullbird.hfs.config.Config;
-import com.nullbird.hfs.config.rules.RuleAction;
-import com.nullbird.hfs.config.rules.RuleMatcher;
+import com.nullbird.hfs.config.rules.actions.ReverseProxy;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.StringUtils;
@@ -26,21 +25,19 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ReverseProxy implements RuleAction {
-  private final static Logger LOGGER = Logger.getLogger(ReverseProxy.class.getSimpleName());
+public class ReverseProxyImpl  {
+  private final static Logger LOGGER = Logger.getLogger(ReverseProxyImpl.class.getSimpleName());
 
-  private String target;
-  private boolean doForwardIP = true;
-
-  private int maxRetries = 0;
-  private int retriesEveryMs = 0;
-
+  private ReverseProxy conf;
 
   private transient HttpHost proxyHost;
   private transient CloseableHttpAsyncClient __proxyClient;
 
-  @Override
-  public void run(HttpRequest request, HttpResponse response, RuleMatcher matcher) throws ProxyException {
+  public ReverseProxyImpl(ReverseProxy conf) {
+    this.conf = conf;
+  }
+
+  public void run(HttpRequest request, HttpResponse response) throws ProxyException {
     try {
       AsyncRequestBuilder proxyRequestBuilder = buildProxyRequest(request);
 
@@ -90,7 +87,7 @@ public class ReverseProxy implements RuleAction {
   }
 
   private void setXForwardedHeaders(HttpRequest request, AsyncRequestBuilder proxyRequestBuilder) {
-    if (doForwardIP) {
+    if (conf.isDoForwardIP()) {
       String forHeaderName = "X-Forwarded-For";
       String forHeader = request.getRemoteAddr();
       String existingForHeader = request.getHeader(forHeaderName);
@@ -159,11 +156,10 @@ public class ReverseProxy implements RuleAction {
             .setPath(request.getPath());
   }
 
-  @Override
   public void initialize(Config config) throws ConfigurationException {
-    if (target==null) throw new ConfigurationException("ReverseProxy action must have a non null 'target' attribute");
+    if (conf.getTarget()==null) throw new ConfigurationException("ReverseProxy action must have a non null 'target' attribute");
     try {
-      URL targetURL = new URL(target);
+      URL targetURL = new URL(conf.getTarget());
       if (StringUtils.containsNonWhitespace(targetURL.getFile()) ||
               targetURL.getRef()!=null ||
               StringUtils.containsNonWhitespace(targetURL.getPath()) ||
@@ -193,43 +189,13 @@ public class ReverseProxy implements RuleAction {
     return client;
   }
 
-  @Override
   public void stop() {
     LOGGER.info("Stopping http client");
     __proxyClient.close(CloseMode.GRACEFUL);
   }
 
-
-  public String getTarget() {
-    return target;
-  }
-
-  public void setTarget(String targetHost) {
-    this.target = targetHost;
-  }
-
-  public boolean isDoForwardIP() {
-    return doForwardIP;
-  }
-
-  public void setDoForwardIP(boolean doForwardIP) {
-    this.doForwardIP = doForwardIP;
-  }
-
-  public int getMaxRetries() {
-    return maxRetries;
-  }
-
-  public void setMaxRetries(int maxRetries) {
-    this.maxRetries = maxRetries;
-  }
-
-  public int getRetriesEveryMs() {
-    return retriesEveryMs;
-  }
-
-  public void setRetriesEveryMs(int retriesEveryMs) {
-    this.retriesEveryMs = retriesEveryMs;
+  public ReverseProxy getConf() {
+    return conf;
   }
 }
 

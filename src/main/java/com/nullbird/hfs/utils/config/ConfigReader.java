@@ -1,10 +1,9 @@
-package com.nullbird.hfs.config;
+package com.nullbird.hfs.utils.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.nullbird.hfs.config.Config;
 import com.nullbird.hfs.config.rules.Rule;
-import com.nullbird.hfs.config.rules.RuleAction;
-import com.nullbird.hfs.config.rules.RuleMatcher;
 import com.nullbird.hfs.utils.StringUtils;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 import com.nullbird.hfs.utils.parsing.RuleActionDeserializer;

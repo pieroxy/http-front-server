@@ -1,7 +1,7 @@
 package com.nullbird.hfs.config.rules.actions.reverseproxy;
 
-import com.nullbird.hfs.config.rules.actions.proxy.ReverseProxy;
-import com.nullbird.hfs.config.rules.actions.proxy.ReverseProxyResponseConsumer;
+import com.nullbird.hfs.config.rules.actions.ReverseProxy;
+import com.nullbird.hfs.http.proxy.ReverseProxyResponseConsumer;
 import com.nullbird.hfs.utils.HashTools;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterAll;

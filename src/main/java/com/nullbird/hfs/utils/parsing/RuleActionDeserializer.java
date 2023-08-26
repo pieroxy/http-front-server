@@ -1,12 +1,8 @@
 package com.nullbird.hfs.utils.parsing;
 
 import com.google.gson.*;
-import com.nullbird.hfs.config.rules.RuleAction;
-import com.nullbird.hfs.config.rules.actions.AddHttpHeader;
-import com.nullbird.hfs.config.rules.actions.BasicAuthenticate;
-import com.nullbird.hfs.config.rules.actions.HttpRedirect;
-import com.nullbird.hfs.config.rules.actions.RespondLiteral;
-import com.nullbird.hfs.config.rules.actions.proxy.ReverseProxy;
+import com.nullbird.hfs.config.rules.actions.*;
+import com.nullbird.hfs.utils.config.RuleAction;
 
 import java.lang.reflect.Type;
 

@@ -1,8 +1,8 @@
 package com.nullbird.hfs.config.rules.actions;
 
 import com.nullbird.hfs.config.Config;
-import com.nullbird.hfs.config.rules.RuleAction;
-import com.nullbird.hfs.config.rules.RuleMatcher;
+import com.nullbird.hfs.utils.config.RuleAction;
+import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.errors.ConfigurationException;

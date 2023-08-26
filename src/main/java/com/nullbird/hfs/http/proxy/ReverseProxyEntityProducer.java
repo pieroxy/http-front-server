@@ -1,4 +1,4 @@
-package com.nullbird.hfs.config.rules.actions.proxy;
+package com.nullbird.hfs.http.proxy;
 
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.nio.StreamChannel;

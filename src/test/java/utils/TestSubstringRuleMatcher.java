@@ -1,7 +1,7 @@
 package utils;
 
 import com.nullbird.hfs.config.Config;
-import com.nullbird.hfs.config.rules.SubstringRuleMatcher;
+import com.nullbird.hfs.utils.config.SubstringRuleMatcher;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 

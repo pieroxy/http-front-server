@@ -1,7 +1,7 @@
 package com.nullbird.hfs.utils.parsing;
 
 import com.google.gson.*;
-import com.nullbird.hfs.config.rules.RuleMatcher;
+import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.config.rules.matchers.*;
 
 import java.lang.reflect.Type;

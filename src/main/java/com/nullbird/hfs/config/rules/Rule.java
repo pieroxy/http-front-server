@@ -1,6 +1,8 @@
 package com.nullbird.hfs.config.rules;
 
 import com.nullbird.hfs.config.Config;
+import com.nullbird.hfs.utils.config.RuleAction;
+import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 
 public class Rule {

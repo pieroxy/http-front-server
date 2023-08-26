@@ -1,6 +1,6 @@
 package com.nullbird.hfs.bootstrap;
 
-import com.nullbird.hfs.config.ConfigReader;
+import com.nullbird.hfs.utils.config.ConfigReader;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;

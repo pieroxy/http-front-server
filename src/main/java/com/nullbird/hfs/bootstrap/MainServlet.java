@@ -1,7 +1,7 @@
 package com.nullbird.hfs.bootstrap;
 
 import com.nullbird.hfs.config.Config;
-import com.nullbird.hfs.config.ConfigReader;
+import com.nullbird.hfs.utils.config.ConfigReader;
 import com.nullbird.hfs.config.rules.Rule;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.ServletHttpRequest;

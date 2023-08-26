@@ -1,4 +1,4 @@
-package com.nullbird.hfs.config.rules.actions.proxy;
+package com.nullbird.hfs.http.proxy;
 
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.StringUtils;
@@ -72,7 +72,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
                                     HttpResponse response,
                                     Header header) {
     String headerName = header.getName();
-    if (ReverseProxy.hopByHopHeaders.containsHeader(headerName))
+    if (ReverseProxyImpl.hopByHopHeaders.containsHeader(headerName))
       return;
     String headerValue = header.getValue();
     response.addHeader(headerName, headerValue);
@@ -136,9 +136,9 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
           }
         } catch (ExecutionException e) {
           if (e.getCause() instanceof HttpHostConnectException) {
-            if (requestData.getProxy().getMaxRetries() > 0 &&
-                    requestData.getProxy().getRetriesEveryMs() > 0) {
-              if (requestData.getProxy().getMaxRetries() < requestData.getAttemptNo()) {
+            if (requestData.getProxy().getConf().getMaxRetries() > 0 &&
+                    requestData.getProxy().getConf().getRetriesEveryMs() > 0) {
+              if (requestData.getProxy().getConf().getMaxRetries() < requestData.getAttemptNo()) {
                 LOGGER.warning("Host could not be reached after retries (" + requestData.getDebugInfos() + ")");
                 response.respond(
                         HttpServletResponse.SC_BAD_GATEWAY,
@@ -155,7 +155,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
                             timer.cancel();
                           }
                         },
-                        requestData.getProxy().getRetriesEveryMs()
+                        requestData.getProxy().getConf().getRetriesEveryMs()
                 );
                 initiatedRetry.set(true);
                 return;
