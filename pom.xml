@@ -13,20 +13,25 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
+    
     <tomcat.version>10.1.13</tomcat.version>
-    <httpclient.version>5.2.1</httpclient.version>
+    <gson.version>2.10.1</gson.version>
+    <httpclient5.version>5.2.1</httpclient5.version>
+
+    <servlet.api.version>6.0.0</servlet.api.version>
+    <junit.jupiter.version>5.10.0</junit.jupiter.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.httpcomponents.client5</groupId>
       <artifactId>httpclient5</artifactId>
-      <version>${httpclient.version}</version>
+      <version>${httpclient5.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
-      <version>2.10.1</version>
+      <version>${gson.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.tomcat.embed</groupId>
@@ -48,13 +53,13 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
-      <version>5.10.0</version>
+      <version>${junit.jupiter.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>jakarta.servlet</groupId>
       <artifactId>jakarta.servlet-api</artifactId>
-      <version>6.0.0</version>
+      <version>${servlet.api.version}</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
