@@ -7,9 +7,21 @@ import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 
+/**
+ * This action will add an http header to the response. It does not consume the response and allow the
+ * flow to continue.
+ */
 public class AddHttpHeader implements RuleAction {
-  private String name;
-  private String value;
+  /**
+   * The name of the http header to be added.
+   * <br>This attribute is mandatory.
+   */
+  protected String name;
+  /**
+   * The value of the http header to be added.
+   * <br>This attribute is mandatory.
+   */
+  protected String value;
 
   @Override
   public void run(HttpRequest request, HttpResponse response, RuleMatcher matcher) {
