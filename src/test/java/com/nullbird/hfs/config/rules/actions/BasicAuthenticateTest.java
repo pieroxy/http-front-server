@@ -9,7 +9,6 @@ import utils.TestResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,9 +62,9 @@ public class BasicAuthenticateTest {
     action.setCredentials(Map.of("user", "password"));
     var request = TestRequest.fromUrl("http://anything/");
     request.setMethod("POST");
-    request.getParameters().put(action.AUTH_LOGIN, List.of("user"));
-    request.getParameters().put(action.AUTH_PASSWORD, List.of("password"));
-    request.getParameters().put(action.AUTH_REDIRECT, List.of("http://success"));
+    request.getPostData().put(action.AUTH_LOGIN, "user");
+    request.getPostData().put(action.AUTH_PASSWORD, "password");
+    request.getPostData().put(action.AUTH_REDIRECT, "http://success");
     var response = new TestResponse();
     action.run(request, response, null);
     assertEquals(HttpServletResponse.SC_FOUND, response.getStatus());
@@ -80,9 +79,9 @@ public class BasicAuthenticateTest {
     action.setCredentials(Map.of("user", "password"));
     var request = TestRequest.fromUrl("http://anything/");
     request.setMethod("POST");
-    request.getParameters().put(action.AUTH_LOGIN, List.of("user"));
-    request.getParameters().put(action.AUTH_PASSWORD, List.of("password2"));
-    request.getParameters().put(action.AUTH_REDIRECT, List.of("http://success"));
+    request.getPostData().put(action.AUTH_LOGIN, "user");
+    request.getPostData().put(action.AUTH_PASSWORD, "password2");
+    request.getPostData().put(action.AUTH_REDIRECT, "http://success");
     var response = new TestResponse();
     action.run(request, response, null);
     assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.getStatus());

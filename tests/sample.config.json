@@ -16,6 +16,27 @@
   "rules": [
     { 
       "matcher": {
+        "type": "URLSubstringMatcher",
+	"pattern": "auth"
+      },
+      "action": {
+        "type": "BasicAuthenticate",
+        "credentials": {"testlogin":"testpassword"}
+      }
+    },
+    { 
+      "matcher": {
+        "type": "URLSubstringMatcher",
+        "pattern": "auth"
+      },
+      "action": {
+        "type": "RespondLiteral",
+        "contentType": "text/plain",
+        "content": "Authentication was successful."
+      }
+    },
+    { 
+      "matcher": {
         "type": "All"
       },
       "action": {

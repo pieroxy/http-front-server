@@ -20,6 +20,7 @@ public class TestRequest implements HttpRequest {
   Map<String, List<String>> headers;
   Map<String, List<String>> parameters;
   Map<String, String> cookieValues;
+  Map<String, String> postData = new HashMap<>();
   String remoteAddr = "127.0.0.1";
   String scheme;
   byte[]bodyAsByteArray;
@@ -175,4 +176,16 @@ public class TestRequest implements HttpRequest {
     return response;
   }
 
+  @Override
+  public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData() throws IOException {
+    return postData;
+  }
+
+  public Map<String, String> getPostData() {
+    return postData;
+  }
+
+  public void setPostData(Map<String, String> postData) {
+    this.postData = postData;
+  }
 }

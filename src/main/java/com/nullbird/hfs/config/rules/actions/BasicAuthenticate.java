@@ -11,15 +11,17 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.ContentType;
 
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class BasicAuthenticate implements RuleAction {
+  private static final Logger LOGGER = Logger.getLogger(BasicAuthenticate.class.getName());
   public final String COOKIE_VALUE="OK";
   public final String AUTH_LOGIN=this.getClass().getName() + ".login";
   public final String AUTH_PASSWORD=this.getClass().getName() + ".password";
@@ -34,28 +36,47 @@ public class BasicAuthenticate implements RuleAction {
   @Override
   public void run(HttpRequest request, HttpResponse response, RuleMatcher matcher) {
     if (Objects.equals(request.getCookieValue(cookieName), COOKIE_VALUE)) return;
-    String login = request.getParameter(AUTH_LOGIN);
-    String password = request.getParameter(AUTH_PASSWORD);
-    String target = request.getParameter(AUTH_REDIRECT);
-    if (login!=null && password!=null && target!=null && request.getMethod().equals("POST")) {
-      if (Objects.equals(credentials.get(login), password)) {
-        // Authenticating the user
-        authenticate(response);
-        response.sendRedirect(HttpServletResponse.SC_FOUND, target);
-      } else {
-        failLogin(request, response);
+    try {
+      Map<String, String> postData = request.decodeSimpleXWWWFormUrlEncodedPostData();
+      String login = postData.get(AUTH_LOGIN);
+      String password = postData.get(AUTH_PASSWORD);
+      String target = postData.get(AUTH_REDIRECT);
+
+      if (LOGGER.isLoggable(Level.FINER)) {
+        LOGGER.finer("login " + login);
+        LOGGER.finer("password null " + (password == null));
+        LOGGER.finer("target " + target);
+        LOGGER.finer("method " + request.getMethod());
       }
-    } else {
+
+      if (login != null && password != null && target != null && request.getMethod().equals("POST")) {
+        if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Authenticating the request");
+        if (Objects.equals(credentials.get(login), password)) {
+          if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Authentication successful");
+          // Authenticating the user
+          authenticate(response);
+          response.sendRedirect(HttpServletResponse.SC_FOUND, target);
+        } else {
+          if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Authentication failed");
+          failLogin(request, target, response);
+        }
+      } else {
+        if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Request needs authentication");
+        showLoginPrompt(request, response);
+      }
+    } catch (IOException e) {
+      if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Request failed decoding and thus needs authentication");
       showLoginPrompt(request, response);
+
     }
   }
 
-  private void failLogin(HttpRequest request, HttpResponse response) {
-    sendLoginForm(response, request.getParameter(AUTH_REDIRECT), "Authentication failed");
+  private void failLogin(HttpRequest request, String target, HttpResponse response) {
+    sendLoginForm(response, target, "Authentication failed");
   }
 
   private void showLoginPrompt(HttpRequest request, HttpResponse response) {
-    sendLoginForm(response, request.getUrl(), "");
+    sendLoginForm(response, request.getUrl(), "You need to authenticate to move forward.");
   }
 
   private void sendLoginForm(HttpResponse response, String redirect, String message) {
@@ -64,12 +85,14 @@ public class BasicAuthenticate implements RuleAction {
               <head>
               </head>
               <body>
-                <form>
+                <form method="post">
                   <center>%s</center>
-                  <label>Login:<input type="text" name="%s"></label>
-                  <label>Password:<input type="password" name="%s"></label>
-                  <input type="hidden" name="%s" value="%s">
-                  <input type="submit" value="OK">
+                  <center>
+                    <label>Login:<input type="text" name="%s"></label><br>
+                    <label>Password:<input type="password" name="%s"></label>
+                    <input type="hidden" name="%s" value="%s">
+                    <input type="submit" value="OK">
+                  </center>
                 </form>
               </body>
             </html>
@@ -90,7 +113,7 @@ public class BasicAuthenticate implements RuleAction {
     if (StringUtils.containsNonWhitespace(credentialsFile)) {
       Properties properties = new Properties();
       try {
-        properties.load(new FileReader(new File(credentialsFile)));
+        properties.load(new FileReader(credentialsFile));
       } catch (IOException e) {
         throw new ConfigurationException("Cannot read from credentials file", e);
       }

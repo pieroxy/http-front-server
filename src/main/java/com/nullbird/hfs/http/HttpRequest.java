@@ -3,6 +3,7 @@ package com.nullbird.hfs.http;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Enumeration;
+import java.util.Map;
 
 public interface HttpRequest {
   String getMethod();
@@ -27,4 +28,5 @@ public interface HttpRequest {
 
   HttpResponse getResponse();
 
+  Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData() throws IOException;
 }

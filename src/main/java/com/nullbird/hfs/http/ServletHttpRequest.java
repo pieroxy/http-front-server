@@ -10,9 +10,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.Objects;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -22,6 +22,8 @@ public class ServletHttpRequest implements HttpRequest {
   private final HttpServletRequest request;
   private ServletHttpResponse response;
   private String url = null;
+
+  private Map<String, String> postFormData;
 
   public ServletHttpRequest(HttpServletRequest request, HttpServletResponse response) {
     this.request = request;
@@ -125,4 +127,30 @@ public class ServletHttpRequest implements HttpRequest {
   public ServletHttpResponse getResponse() {
     return response;
   }
+
+  @Override
+  public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData() throws IOException {
+    if (postFormData == null) {
+       postFormData = new HashMap<>();
+       decodeInputStream(getBodyStream(), postFormData);
+    }
+    return postFormData;
+  }
+
+  static void decodeInputStream(InputStream stream, Map<String, String> map) {
+    Scanner s = new Scanner(stream).useDelimiter("\\&");
+
+    s.forEachRemaining((pair) -> {
+      Scanner s2 = new Scanner(pair).useDelimiter("=");
+      String key = s2.next();
+      try {
+        String value = URLDecoder.decode(s2.next().trim(), "UTF-8");
+        map.put(key, value);
+      } catch (UnsupportedEncodingException
+               | NoSuchElementException ex) {
+        throw new RuntimeException("Could not decode x-www-form-urlencoded data", ex);
+      }
+    });
+  }
+
 }
