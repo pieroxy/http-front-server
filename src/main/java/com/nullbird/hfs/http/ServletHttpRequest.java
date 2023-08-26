@@ -106,7 +106,9 @@ public class ServletHttpRequest implements HttpRequest {
   @Override
   public String getCookieValue(String name) {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getCookieValue("+name+") :: not computing");
-    Cookie c = Arrays.stream(request.getCookies())
+    var cookies = request.getCookies();
+    if (cookies == null) return null;
+    Cookie c = Arrays.stream(cookies)
             .filter(cookie -> Objects.equals(cookie.getName(), name))
             .collect(UtilityCollectors.getOneItemOrNull());
     return c == null ? null : c.getValue();
