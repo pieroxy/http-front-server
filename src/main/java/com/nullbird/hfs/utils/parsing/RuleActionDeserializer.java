@@ -1,10 +1,11 @@
 package com.nullbird.hfs.utils.parsing;
 
 import com.google.gson.*;
-import com.nullbird.hfs.config.rules.*;
+import com.nullbird.hfs.config.rules.RuleAction;
 import com.nullbird.hfs.config.rules.actions.AddHttpHeader;
 import com.nullbird.hfs.config.rules.actions.BasicAuthenticate;
 import com.nullbird.hfs.config.rules.actions.HttpRedirect;
+import com.nullbird.hfs.config.rules.actions.RespondLiteral;
 import com.nullbird.hfs.config.rules.actions.proxy.ReverseProxy;
 
 import java.lang.reflect.Type;
@@ -27,6 +28,9 @@ public class RuleActionDeserializer  implements JsonDeserializer<RuleAction> {
           return jsonDeserializationContext.deserialize(jsonElement, HttpRedirect.class);
         case "ReverseProxy":
           return jsonDeserializationContext.deserialize(jsonElement, ReverseProxy.class);
+        case "RespondLiteral":
+          return jsonDeserializationContext.deserialize(jsonElement, RespondLiteral.class);
+
         default:
           throw new RuntimeException("Unknown rule action node type " + nodeType);
       }
