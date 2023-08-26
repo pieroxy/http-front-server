@@ -8,10 +8,30 @@ import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 
+/**
+ * This action will respond with an http redirection.
+ * This action does consume the response and interrupt the flow of rules processing.
+ */
 public class HttpRedirect implements RuleAction {
-  private String target;
-  private int status;
-  private boolean substring;
+  /**
+   * The URL to which user agents will be redirected to.
+   * <br>This attribute is mandatory.
+   */
+  protected String target;
+  /**
+   * The URL to which user agents will be redirected to.
+   * <br>This attribute is optional. If not provided, the value of {@link Config#defaultRedirectStatus} will be used
+   */
+  protected int status;
+  /**
+   * If set to <b>true</b>, means the {@link #target} value will be used to replace the matching pattern of the matcher
+   * in the incoming URL. The {@link RuleMatcher} used then needs to implement {@link SubstringRuleMatcher}, such as
+   * {@link com.nullbird.hfs.config.rules.matchers.URLRegexpMatcher} or
+   * {@link com.nullbird.hfs.config.rules.matchers.URLSubstringMatcher}
+   * <br>If set to <b>false</b>, the {@link #target} attribute will be used as-is for the redirection.
+   * <br>This attribute is optional. The default value is <b>false</b>
+   */
+  protected boolean substring;
 
   @Override
   public void run(HttpRequest request, HttpResponse response, RuleMatcher matcher) {
@@ -28,7 +48,7 @@ public class HttpRedirect implements RuleAction {
   @Override
   public void initialize(Config config) throws ConfigurationException {
     if (status<1) status = config.getDefaultRedirectStatus();
-    if (target==null) throw new ConfigurationException("HttpRediect action definition must include a non null 'target' attribute");
+    if (target==null) throw new ConfigurationException("HttpRedirect action definition must include a non null 'target' attribute");
   }
 
   @Override
