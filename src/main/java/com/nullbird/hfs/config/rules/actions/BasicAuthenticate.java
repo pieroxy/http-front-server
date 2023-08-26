@@ -83,13 +83,42 @@ public class BasicAuthenticate implements RuleAction {
     String html = String.format("""
             <html>
               <head>
+              <style>
+              body {
+                text-align: center;
+              }
+              
+              form {
+                border: 1px solid #eee;
+                display: inline-block;
+                margin-top: calc( 50vh - 7em );
+                padding: 2em 1em;
+                background-color: #f8f8f8;
+                box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+              }
+              
+              right {
+                text-align:right;
+                display: block;
+              }
+              
+              input {
+                margin-top:10px;
+              }
+              
+              input[type=submit] {
+                  padding: 3px 30px;
+              }
+              </style>
               </head>
               <body>
                 <form method="post">
                   <center>%s</center>
+                  <right>
+                    <label>Login: <input type="text" name="%s"></label><br>
+                    <label>Password: <input type="password" name="%s"></label><br>
+                  </right>
                   <center>
-                    <label>Login:<input type="text" name="%s"></label><br>
-                    <label>Password:<input type="password" name="%s"></label>
                     <input type="hidden" name="%s" value="%s">
                     <input type="submit" value="OK">
                   </center>
