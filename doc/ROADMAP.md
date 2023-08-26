@@ -12,6 +12,7 @@ In this file you will find what is next for nullbird-hfs
 
 ## Functionality
 
+* [Hi] Write more tests (actions & matchers) - namely to test all configurations
 * Matchers
 * Actions
   * [Med] Multiple Action (That holds a list of actions, ex: Set a cookie & redirect)
@@ -28,6 +29,13 @@ In this file you will find what is next for nullbird-hfs
 * [Med] Build a full end-to-end test, hopefully a unit test
 * [Hi] Test config file parsing
 * [Blocked] Test the https bits
+
+## Documentation
+
+* [Top] Documentation for the actions (javadoc).
+* [Top] Write a startup guide.
+* [Top] Write some CLI handling, with a default conf.
+* [Top] Write a startup guide with all actions and rules.
 
 ## Far away in the future
 
