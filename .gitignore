@@ -3,3 +3,4 @@ local.properties
 target
 dependency-reduced-pom.xml
 .idea
+deployjavadoc.sh
