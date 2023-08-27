@@ -1,5 +1,8 @@
 package com.nullbird.hfs.config;
 
+/**
+ * This class is used to configure the <b>https</b> connector.
+ */
 public class TomcatSslConfig {
   /**
    * Port this server should listen to for https requests. If not specified, the default value is <b>8443</b>

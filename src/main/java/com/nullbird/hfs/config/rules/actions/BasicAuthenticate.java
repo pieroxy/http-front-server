@@ -20,16 +20,45 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * This action protects the requests matched with a simple login/password authentication. IT is not meant to be
+ * state-of-the-art security but adds a layer nevertheless. You can typically use this to protect
+ * endpoints that are commonly targeted by hackers and bots, such as wordpress admin endpoints, or your test instance
+ * that needs to be accessed through the Internet but you don't want your users to confuse it with the production
+ * services.
+ */
 public class BasicAuthenticate implements RuleAction {
   private static final Logger LOGGER = Logger.getLogger(BasicAuthenticate.class.getName());
   public final String COOKIE_VALUE="OK";
   public final String AUTH_LOGIN=this.getClass().getName() + ".login";
   public final String AUTH_PASSWORD=this.getClass().getName() + ".password";
   public final String AUTH_REDIRECT=this.getClass().getName() + ".target";
+
+  /**
+   * The file name for the credentials. The format is <a href="https://en.wikipedia.org/wiki/.properties">properties</a>
+   * in the format <code>login=password</code>.
+   * <br>This parameter or {@link #credentials} must be defined.
+   */
   String credentialsFile;
+  /**
+   * If set to <b>true</b> the cookie used will have the <code>secure</code> flag.
+   * <br>Defaults to <b>true</b>.
+   */
   boolean secure = true;
+  /**
+   * The list of login/passwords to authenticate users.
+   * <br>This parameter or {@link #credentialsFile} must be defined.
+   */
   Map<String, String> credentials;
+  /**
+   * The name of the cookie to drop.
+   * <br>Defaults to <b>com.nullbird.hfs.config.rules.actions.BasicAuthenticate</b>.
+   */
   String cookieName = this.getClass().getName();
+  /**
+   * The duration of the authentication, in hours.
+   * <br>Defaults to <b>365 days</b>.
+   */
   int cookieDurationInHours = 24*365;
 
 
@@ -133,6 +162,7 @@ public class BasicAuthenticate implements RuleAction {
     var cookie = new Cookie(cookieName, COOKIE_VALUE);
     cookie.setSecure(secure);
     cookie.setMaxAge(cookieDurationInHours*60*60);
+    cookie.setHttpOnly(true);
     response.addCookie(cookie);
   }
 

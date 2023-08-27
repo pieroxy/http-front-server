@@ -6,6 +6,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This class represents the configuration of the http front server.
+ */
 public class Config {
 
   /**

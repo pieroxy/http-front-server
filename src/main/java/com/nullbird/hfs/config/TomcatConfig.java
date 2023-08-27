@@ -1,5 +1,8 @@
 package com.nullbird.hfs.config;
 
+/**
+ * The configuration for Tomcat
+ */
 public class TomcatConfig {
   /**
    * Port this server should listen to for http requests. If not specified, the default value is <b>8080</b>

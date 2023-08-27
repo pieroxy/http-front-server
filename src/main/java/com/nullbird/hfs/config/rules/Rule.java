@@ -47,22 +47,18 @@ public class Rule {
     }
   }
 
-  /** */
   public RuleMatcher getMatcher() {
     return matcher;
   }
 
-  /** */
   public void setMatcher(RuleMatcher matcher) {
     this.matcher = matcher;
   }
 
-  /** */
   public RuleAction getAction() {
     return action;
   }
 
-  /** */
   public void setAction(RuleAction action) {
     this.action = action;
   }
