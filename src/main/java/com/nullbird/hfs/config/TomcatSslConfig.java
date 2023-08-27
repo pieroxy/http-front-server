@@ -5,7 +5,8 @@ package com.nullbird.hfs.config;
  */
 public class TomcatSslConfig {
   /**
-   * Port this server should listen to for https requests. If not specified, the default value is <b>8443</b>
+   * Port this server should listen to for https requests.
+   * <br>If not specified, the default value is <b>8443</b>
    */
   protected int port = 8443;
 

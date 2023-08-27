@@ -9,8 +9,21 @@ import com.nullbird.hfs.utils.errors.ConfigurationException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.ContentType;
 
+/**
+ * This action is used to respond a small piece of text. <code>ads.txt</code>, <code>robots.txt</code>,
+ * <code>apple-app-site-association</code>, etc, all these little files don't need to live on the filesystem
+ * and have little to do with your domain application. Content is served with a http status of 200.
+ */
 public class RespondLiteral implements RuleAction {
+  /**
+   * The Content-Type header that will be used for the response.
+   * <br>This attribute is mandatory.
+   */
   protected String contentType;
+  /**
+   * The body of the http response.
+   * <br>This attribute is mandatory.
+   */
   protected String content;
 
 
