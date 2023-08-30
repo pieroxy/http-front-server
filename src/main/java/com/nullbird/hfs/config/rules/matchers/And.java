@@ -7,6 +7,9 @@ import com.nullbird.hfs.utils.errors.ConfigurationException;
 
 import java.util.List;
 
+/**
+ * This matcher encapsulates several matchers and will match only if all matchers match the request.
+ */
 public class And implements RuleMatcher {
   /**
    * The instances of {@link RuleMatcher}s this matcher will AND the output of.

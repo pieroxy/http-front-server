@@ -5,6 +5,12 @@ import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 
+/**
+ * This matcher encapsulates one matcher and will match if the matcher doesn't match the request.
+ * For example, if it encapsulates the {@link ContainsCookie} matcher, it will match if the request
+ * doesn't contain the cookie.
+ */
+
 public class Not implements RuleMatcher {
   /**
    * The instance of {@link RuleMatcher} this matcher will negate the output of.

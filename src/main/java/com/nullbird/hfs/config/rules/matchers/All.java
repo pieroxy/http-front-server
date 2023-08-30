@@ -5,6 +5,9 @@ import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 
+/**
+ * This matcher will match all requests.
+ */
 public class All implements RuleMatcher {
 
   /**

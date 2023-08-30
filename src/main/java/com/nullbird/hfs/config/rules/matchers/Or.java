@@ -7,6 +7,9 @@ import com.nullbird.hfs.utils.errors.ConfigurationException;
 
 import java.util.List;
 
+/**
+ * This matcher encapsulates several matchers and will match only if at least one matcher match the request.
+ */
 public class Or implements RuleMatcher {
   /**
    * The instances of {@link RuleMatcher}s this matcher will OR the output of.
