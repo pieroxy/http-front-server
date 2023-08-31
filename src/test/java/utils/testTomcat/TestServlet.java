@@ -11,6 +11,7 @@ import java.util.Collections;
 public class TestServlet implements BasicServlet {
   @Override
   public void process(HttpServletRequest req, HttpServletResponse res) throws Exception {
+    res.addHeader("ABC", "Def");
     PrintWriter writer = res.getWriter();
     String wait = req.getParameter("wait");
     if (StringUtils.containsNonWhitespace(wait)) {

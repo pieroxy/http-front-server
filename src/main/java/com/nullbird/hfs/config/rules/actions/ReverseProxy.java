@@ -8,6 +8,8 @@ import com.nullbird.hfs.utils.config.RuleAction;
 import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 
+import java.util.List;
+
 /**
  * This action will replay the http request to another backend host.
  * <br>A header <code>X-Forwarded-Proto</code> is added to the request, indicating the backend whether the
@@ -46,6 +48,11 @@ public class ReverseProxy implements RuleAction {
    * <br>Default value is <b>0</b>, meaning an unreachable backend will lead to a 500 error.
    */
   protected int retriesEveryMs = 0;
+
+  /**
+   * All http header names in this property will be wiped from the response.
+   */
+  protected List<String> ignoreResponseHeaders;
 
   private ReverseProxyImpl proxy;
 
@@ -95,5 +102,13 @@ public class ReverseProxy implements RuleAction {
 
   public void setRetriesEveryMs(int retriesEveryMs) {
     this.retriesEveryMs = retriesEveryMs;
+  }
+
+  public List<String> getIgnoreResponseHeaders() {
+    return ignoreResponseHeaders;
+  }
+
+  public void setIgnoreResponseHeaders(List<String> ignoreResponseHeaders) {
+    this.ignoreResponseHeaders = ignoreResponseHeaders;
   }
 }

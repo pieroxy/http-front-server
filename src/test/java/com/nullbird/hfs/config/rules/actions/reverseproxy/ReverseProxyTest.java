@@ -16,6 +16,7 @@ import utils.testTomcat.TestTomcat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,15 +26,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ExtendWith({BeforeAllTests.class})
 public class ReverseProxyTest {
   private TestTomcat tomcat;
+  public static int port = 12387;
 
   @BeforeAll
   void startTomcat() throws Exception {
-    this.tomcat = new TestTomcat(12345, new TestServlet());
+    this.tomcat = new TestTomcat(port, new TestServlet());
   }
   @Test
   public void simpleGetTest() throws Exception {
     var action = new ReverseProxy();
-    action.setTarget("http://localhost:12345");
+    action.setTarget("http://localhost:" + port);
     action.initialize(null);
     var request = TestRequest.fromUrl("http://iii");
     request.getResponse().setToNotifyOnCompletion(this);
@@ -41,11 +43,32 @@ public class ReverseProxyTest {
     waitOnResponse(request);
     assertEquals(200, request.getResponse().getStatus());
     List<String> lines = Stream.of(new String(request.getResponse().getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
-            .map(String::toLowerCase).toList();
+        .map(String::toLowerCase).toList();
     assertEquals("ok", lines.get(0));
     assertTrue(lines.contains("header::host: iii"));
     assertEquals("method:get", lines.get(1));
     assertEquals("url:http://iii/", lines.get(3));
+    assertEquals("Def", request.getResponse().getHeaders().get("ABC"));
+  }
+
+  @Test
+  public void ignoreHeaderTest() throws Exception {
+    var action = new ReverseProxy();
+    action.setTarget("http://localhost:" + port);
+    action.setIgnoreResponseHeaders(List.of("ABC"));
+    action.initialize(null);
+    var request = TestRequest.fromUrl("http://iii");
+    request.getResponse().setToNotifyOnCompletion(this);
+    action.run(request, request.getResponse(), null);
+    waitOnResponse(request);
+    assertEquals(200, request.getResponse().getStatus());
+    List<String> lines = Stream.of(new String(request.getResponse().getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
+        .map(String::toLowerCase).toList();
+    assertEquals("ok", lines.get(0));
+    assertTrue(lines.contains("header::host: iii"));
+    assertEquals("method:get", lines.get(1));
+    assertEquals("url:http://iii/", lines.get(3));
+    assertEquals(null, request.getResponse().getHeaders().get("ABC"));
   }
 
   private void waitOnResponse(TestRequest request) {
@@ -63,7 +86,7 @@ public class ReverseProxyTest {
   @Test
   public void uriGetTest() throws Exception {
     var action = new ReverseProxy();
-    action.setTarget("http://localhost:12345");
+    action.setTarget("http://localhost:" + port);
     action.initialize(null);
     var request = TestRequest.fromUrl("http://iii/this/is/the/uri?toto=2");
     action.run(request, request.getResponse(), null);
@@ -80,7 +103,7 @@ public class ReverseProxyTest {
   @Test
   public void simplePostTest() throws Exception {
     var action = new ReverseProxy();
-    action.setTarget("http://localhost:12345");
+    action.setTarget("http://localhost:" + port);
     action.initialize(null);
     var req = TestRequest.fromUrl("http://test.domain.com");
     req.setMethod("POST");

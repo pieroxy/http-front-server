@@ -1,5 +1,6 @@
 package com.nullbird.hfs.http.proxy;
 
+import com.nullbird.hfs.config.rules.actions.ReverseProxy;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.StringUtils;
 import jakarta.servlet.http.HttpServletResponse;
@@ -7,6 +8,8 @@ import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.async.methods.AbstractBinResponseConsumer;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.message.StatusLine;
 
 import java.io.IOException;
@@ -35,14 +38,20 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
   private WritableByteChannel __channel;
 
   private ReverseProxyHttpRequest requestData;
+  private HeaderGroup headersToIgnore = new HeaderGroup();
+
+  private final ReverseProxy conf;
 
   private WritableByteChannel getChannel() throws IOException {
     if (__channel==null) __channel = Channels.newChannel(response.getOutputStream());
     return __channel;
   }
 
-  public ReverseProxyResponseConsumer(HttpResponse response) {
+  public ReverseProxyResponseConsumer(HttpResponse response, ReverseProxy conf) {
     this.response = response;
+    this.conf = conf;
+    if (conf.getIgnoreResponseHeaders()!=null)
+      conf.getIgnoreResponseHeaders().forEach(h -> headersToIgnore.addHeader(new BasicHeader(h, null)));
   }
 
 
@@ -72,7 +81,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
                                     HttpResponse response,
                                     Header header) {
     String headerName = header.getName();
-    if (ReverseProxyImpl.hopByHopHeaders.containsHeader(headerName))
+    if (ReverseProxyImpl.hopByHopHeaders.containsHeader(headerName) || headersToIgnore.containsHeader(headerName))
       return;
     String headerValue = header.getValue();
     response.addHeader(headerName, headerValue);

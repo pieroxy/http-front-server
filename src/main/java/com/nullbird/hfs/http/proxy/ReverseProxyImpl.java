@@ -71,7 +71,7 @@ public class ReverseProxyImpl  {
       HttpResponse asyncResponse = request.getAsyncResponse(response);
       new ReverseProxyHttpRequest(
               proxyRequest,
-              new ReverseProxyResponseConsumer(asyncResponse),
+              new ReverseProxyResponseConsumer(asyncResponse, conf),
               this, asyncResponse, request.getUrl(), proxyHost.toString()).run();
     } catch (Exception e) {
       throw new ProxyException(e);
