@@ -11,11 +11,13 @@ import java.io.*;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class Runner {
   private final static Logger LOGGER;
@@ -30,15 +32,19 @@ public class Runner {
     System.setProperty("java.util.logging.manager", MyLogManager.class.getName());
     LOGGER = Logger.getLogger(Runner.class.getName());
 
-    GIT_REV = readResourceFileAsString("GIT_REV");
-    MVN_VER = readResourceFileAsString("MVN_VER");
-    GIT_DEPTH = readResourceFileAsString("GIT_DEPTH");
+    GIT_REV = readResourceFileAsString("GIT_REV", false);
+    MVN_VER = readResourceFileAsString("MVN_VER", false);
+    GIT_DEPTH = readResourceFileAsString("GIT_DEPTH", false);
   }
 
-  private static String readResourceFileAsString(String filename) {
+  private static String readResourceFileAsString(String filename, boolean allLines) {
     try {
       InputStream is = Runner.class.getClassLoader().getResourceAsStream(filename);
-      return new BufferedReader(new InputStreamReader(is)).lines().findFirst().get();
+      if (allLines) {
+        return new BufferedReader(new InputStreamReader(is)).lines().collect(Collectors.joining(System.lineSeparator()));
+      } else {
+        return new BufferedReader(new InputStreamReader(is)).lines().findFirst().get();
+      }
     } catch (Exception e) {
       LOGGER.log(Level.SEVERE, "Could not read " + filename, e);
       return filename + "_" + Math.random();
@@ -47,8 +53,27 @@ public class Runner {
 
   private static Tomcat tomcat;
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     initLogging(null);
+    if (args.length == 0) {
+      printHelp();
+      return;
+    }
+    if (args.length == 2 && args[0].equals("--save-config-template")) {
+      var sampleConfig = readResourceFileAsString("sample.config.hfs.json", true);
+      var target = new File(args[1]);
+      if (target.exists()) {
+        LOGGER.severe("The file " + args[1] + " already exists. Please specify a filename that doesn't map to " +
+                "an existing file. Exiting.");
+        return;
+      }
+      var os = new FileOutputStream(target);
+      os.write(sampleConfig.getBytes(StandardCharsets.UTF_8));
+      os.flush();
+      os.close();
+      LOGGER.info("Template written to " + args[1]);
+      return;
+    }
     LOGGER.info("Starting.");
     try {
       Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -62,6 +87,14 @@ public class Runner {
       System.exit(1);
     }
     LOGGER.info("Exiting program.");
+  }
+
+  private static void printHelp() {
+    System.out.println("Usage:");
+    System.out.println("  java -jar nullbird-hfs-core-1.0.2-SNAPSHOT.jar /path/to/config/file.json");
+    System.out.println("");
+    System.out.println("If you want a new config file from the template:");
+    System.out.println("  java -jar nullbird-hfs-core-1.0.2-SNAPSHOT.jar --save-config-template /path/to/config/file.json");
   }
 
   private static boolean portAlreadyTaken(int port) throws IOException {
