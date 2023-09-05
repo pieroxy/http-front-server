@@ -25,4 +25,4 @@ Java written http server, which can:
 ## Links
 
 * [The roadmap](doc/ROADMAP.md)
-* Documentation to come
+* [Documentation](doc/INDEX.md)
