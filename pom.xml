@@ -72,7 +72,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
-          <reportOutputDirectory>./target/site/${version}</reportOutputDirectory>
+          <reportOutputDirectory>./target/site/${project.version}</reportOutputDirectory>
           <show>protected</show>
           <subpackages>
             com.nullbird.hfs.config
