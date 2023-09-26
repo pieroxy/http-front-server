@@ -37,6 +37,7 @@ public class Not implements RuleMatcher {
   @Override
   public void initialize(Config config) throws ConfigurationException {
     if (matcher==null) throw new ConfigurationException("Not matcher definition must include a non null 'matcher' attribute");
+    matcher.initialize(config);
   }
 
   @Override

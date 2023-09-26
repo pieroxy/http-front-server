@@ -40,6 +40,9 @@ public class Or implements RuleMatcher {
   @Override
   public void initialize(Config config) throws ConfigurationException {
     if (matchers==null) throw new ConfigurationException("Or matcher definition must include a non null 'matchers' attribute");
+    for (var matcher : matchers) {
+      matcher.initialize(config);
+    }
   }
 
   @Override
