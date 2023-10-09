@@ -70,8 +70,10 @@ public class TestRequest implements HttpRequest {
   }
 
   @Override
-  public String getCookieValue(String name) {
-    return cookieValues.get(name);
+  public List<String> getCookieValues(String name) {
+    var res = new ArrayList<String>();
+    if (cookieValues.containsKey(name)) res.add(cookieValues.get(name));
+    return res;
   }
 
   @Override
