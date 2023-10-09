@@ -1,8 +1,8 @@
 package com.nullbird.hfs.utils.parsing;
 
 import com.google.gson.*;
-import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.config.rules.matchers.*;
+import com.nullbird.hfs.utils.config.RuleMatcher;
 
 import java.lang.reflect.Type;
 
@@ -16,6 +16,10 @@ public class RuleMatcherDeserializer  implements JsonDeserializer<RuleMatcher> {
       String nodeType = typeObj.getAsString();
 
       switch (nodeType){
+        case "IPAddressIs":
+          return jsonDeserializationContext.deserialize(jsonElement, IPAddressIs.class);
+        case "UserAgentContains":
+          return jsonDeserializationContext.deserialize(jsonElement, UserAgentContains.class);
         case "URLRegexpMatcher":
           return jsonDeserializationContext.deserialize(jsonElement, URLRegexpMatcher.class);
         case "URLSubstringMatcher":
