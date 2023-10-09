@@ -3,6 +3,7 @@ package com.nullbird.hfs.http;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 
 public interface HttpRequest {
@@ -10,7 +11,13 @@ public interface HttpRequest {
   String getUrl();
   String getHeader(String name);
   String getParameter(String name);
-  String getCookieValue(String name);
+
+  /**
+   *
+   * @param name
+   * @return never null
+   */
+  List<String> getCookieValues(String name);
 
   byte[] getBodyAsByteArray() throws IOException;
 

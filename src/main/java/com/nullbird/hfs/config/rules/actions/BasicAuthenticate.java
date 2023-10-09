@@ -64,7 +64,7 @@ public class BasicAuthenticate implements RuleAction {
 
   @Override
   public void run(HttpRequest request, HttpResponse response, RuleMatcher matcher) {
-    if (Objects.equals(request.getCookieValue(cookieName), COOKIE_VALUE)) return;
+    if (request.getCookieValues(cookieName).contains(COOKIE_VALUE)) return;
     try {
       Map<String, String> postData = request.decodeSimpleXWWWFormUrlEncodedPostData();
       String login = postData.get(AUTH_LOGIN);

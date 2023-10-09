@@ -1,7 +1,6 @@
 package com.nullbird.hfs.http;
 
 import com.nullbird.hfs.utils.StreamUtils;
-import com.nullbird.hfs.utils.UtilityCollectors;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +14,7 @@ import java.net.URLDecoder;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class ServletHttpRequest implements HttpRequest {
   private final static Logger LOGGER = Logger.getLogger(ServletHttpRequest.class.getName());
@@ -106,14 +106,14 @@ public class ServletHttpRequest implements HttpRequest {
   }
 
   @Override
-  public String getCookieValue(String name) {
+  public List<String> getCookieValues(String name) {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getCookieValue("+name+") :: not computing");
     var cookies = request.getCookies();
     if (cookies == null) return null;
-    Cookie c = Arrays.stream(cookies)
+    return Arrays.stream(cookies)
             .filter(cookie -> Objects.equals(cookie.getName(), name))
-            .collect(UtilityCollectors.getOneItemOrNull());
-    return c == null ? null : c.getValue();
+            .map(Cookie::getValue)
+            .collect(Collectors.toList());
   }
 
   @Override

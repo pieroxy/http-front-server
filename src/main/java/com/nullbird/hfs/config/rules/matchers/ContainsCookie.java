@@ -1,10 +1,11 @@
 package com.nullbird.hfs.config.rules.matchers;
 
 import com.nullbird.hfs.config.Config;
-import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.http.HttpRequest;
+import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -31,8 +32,11 @@ public class ContainsCookie  implements RuleMatcher {
    */
   @Override
   public boolean match(HttpRequest request) {
-    String cookieValue = request.getCookieValue(this.name);
-    return cookieValue != null && pattern.matcher(cookieValue).find();
+    List<String> cookieValues = request.getCookieValues(this.name);
+    for (var cookieValue : cookieValues) {
+      if (pattern.matcher(cookieValue).find()) return true;
+    }
+    return false;
   }
 
   @Override
