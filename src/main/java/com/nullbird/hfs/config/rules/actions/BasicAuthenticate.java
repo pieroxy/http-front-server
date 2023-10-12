@@ -29,6 +29,7 @@ import java.util.logging.Logger;
  */
 public class BasicAuthenticate implements RuleAction {
   private static final Logger LOGGER = Logger.getLogger(BasicAuthenticate.class.getName());
+  private static final Level DEBUG_LEVEL = Level.FINE;
   public final String COOKIE_VALUE="OK";
   public final String AUTH_LOGIN=this.getClass().getName() + ".login";
   public final String AUTH_PASSWORD=this.getClass().getName() + ".password";
@@ -64,7 +65,13 @@ public class BasicAuthenticate implements RuleAction {
 
   @Override
   public void run(HttpRequest request, HttpResponse response, RuleMatcher matcher) {
-    if (request.getCookieValues(cookieName).contains(COOKIE_VALUE)) return;
+    var cookieValues = request.getCookieValues(cookieName);
+    if (cookieValues!=null && cookieValues.contains(COOKIE_VALUE)) {
+      if (LOGGER.isLoggable(DEBUG_LEVEL)) {
+        LOGGER.log(DEBUG_LEVEL, "Letting request go through - " + request.getUrl());
+      }
+      return;
+    }
     try {
       Map<String, String> postData = request.decodeSimpleXWWWFormUrlEncodedPostData();
       String login = postData.get(AUTH_LOGIN);
@@ -79,24 +86,23 @@ public class BasicAuthenticate implements RuleAction {
       }
 
       if (login != null && password != null && target != null && request.getMethod().equals("POST")) {
-        if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Authenticating the request");
+        if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authenticating the request - " + request.getUrl());
         if (Objects.equals(credentials.get(login), password)) {
-          if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Authentication successful");
+          if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authentication successful - " + request.getUrl());
           // Authenticating the user
           authenticate(response);
           response.sendRedirect(HttpServletResponse.SC_FOUND, target);
         } else {
-          if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Authentication failed");
+          if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Authentication failed - " + request.getUrl());
           failLogin(request, target, response);
         }
       } else {
-        if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Request needs authentication");
+        if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Request needs authentication - " + request.getUrl());
         showLoginPrompt(request, response);
       }
     } catch (IOException e) {
-      if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Request failed decoding and thus needs authentication");
+      if (LOGGER.isLoggable(Level.INFO)) LOGGER.log(Level.INFO, "Request failed decoding and thus needs authentication - " + request.getUrl(), e);
       showLoginPrompt(request, response);
-
     }
   }
 
