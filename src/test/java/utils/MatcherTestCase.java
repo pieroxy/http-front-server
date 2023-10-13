@@ -2,14 +2,29 @@ package utils;
 
 import com.nullbird.hfs.utils.config.RuleMatcher;
 import utils.matchers.DumbOddMatcher;
+import utils.matchers.TestLifecycleMatcher;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MatcherTestCase {
   protected void fromUrlHelper(RuleMatcher matcher, String url, boolean shouldMatch) {
     assertEquals(shouldMatch, matcher.match(TestRequest.fromUrl(url)), "For url " + url);
+  }
+
+  protected void assertNotInitialized(TestLifecycleMatcher submatcher) {
+    assertFalse(submatcher.wasInitialized());
+    assertFalse(submatcher.wasStopped());
+  }
+  protected void assertInitialized(TestLifecycleMatcher submatcher) {
+    assertTrue(submatcher.wasInitialized());
+    assertFalse(submatcher.wasStopped());
+  }
+  protected void assertStopped(TestLifecycleMatcher submatcher) {
+    assertTrue(submatcher.wasInitialized());
+    assertTrue(submatcher.wasStopped());
   }
 
   protected void fromCookieHelper(RuleMatcher matcher, String cookieName, String cookieValue, boolean shouldMatch) {

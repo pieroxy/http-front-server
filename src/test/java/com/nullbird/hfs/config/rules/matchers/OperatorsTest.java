@@ -1,9 +1,12 @@
 package com.nullbird.hfs.config.rules.matchers;
 
+import com.nullbird.hfs.utils.config.RuleMatcher;
+import com.nullbird.hfs.utils.errors.ConfigurationException;
 import org.junit.jupiter.api.Test;
 import utils.MatcherTestCase;
 import utils.matchers.DumbOddMatcher;
 import utils.matchers.FalseMatcher;
+import utils.matchers.TestLifecycleMatcher;
 import utils.matchers.TrueMatcher;
 
 import java.util.List;
@@ -46,4 +49,32 @@ public class OperatorsTest extends MatcherTestCase {
     assertTrue(new Or(List.of(new FalseMatcher(),new TrueMatcher())).match(null));
     assertFalse(new Or(List.of(new FalseMatcher(),new FalseMatcher())).match(null));
   }
+
+  @Test
+  void lifecycleTest() throws ConfigurationException {
+    TestLifecycleMatcher submatcher;
+    RuleMatcher matcher;
+
+    matcher = new Not(submatcher = new TestLifecycleMatcher());
+    assertNotInitialized(submatcher);
+    matcher.initialize(null);
+    assertInitialized(submatcher);
+    matcher.stop();
+    assertStopped(submatcher);
+
+    matcher = new And(List.of(submatcher = new TestLifecycleMatcher()));
+    assertNotInitialized(submatcher);
+    matcher.initialize(null);
+    assertInitialized(submatcher);
+    matcher.stop();
+    assertStopped(submatcher);
+
+    matcher = new Or(List.of(submatcher = new TestLifecycleMatcher()));
+    assertNotInitialized(submatcher);
+    matcher.initialize(null);
+    assertInitialized(submatcher);
+    matcher.stop();
+    assertStopped(submatcher);
+  }
+
 }
