@@ -71,6 +71,7 @@ public class TestRequest implements HttpRequest {
 
   @Override
   public List<String> getCookieValues(String name) {
+    if (cookieValues == null) return null;
     var res = new ArrayList<String>();
     if (cookieValues.containsKey(name)) res.add(cookieValues.get(name));
     return res;

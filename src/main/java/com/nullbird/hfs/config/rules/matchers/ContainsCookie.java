@@ -33,8 +33,10 @@ public class ContainsCookie  implements RuleMatcher {
   @Override
   public boolean match(HttpRequest request) {
     List<String> cookieValues = request.getCookieValues(this.name);
-    for (var cookieValue : cookieValues) {
-      if (pattern.matcher(cookieValue).find()) return true;
+    if (cookieValues != null) {
+      for (var cookieValue : cookieValues) {
+        if (pattern.matcher(cookieValue).find()) return true;
+      }
     }
     return false;
   }

@@ -14,7 +14,11 @@ public class MatcherTestCase {
 
   protected void fromCookieHelper(RuleMatcher matcher, String cookieName, String cookieValue, boolean shouldMatch) {
     var req = TestRequest.fromUrl("https://toto.com");
-    req.getCookieValues().put(cookieName, cookieValue);
+    if (cookieName == null) {
+      req.setCookieValues(null);
+    } else {
+      req.getCookieValues().put(cookieName, cookieValue);
+    }
     assertEquals(shouldMatch, matcher.match(req), "For cookie " + cookieName + ":" + cookieValue);
   }
 

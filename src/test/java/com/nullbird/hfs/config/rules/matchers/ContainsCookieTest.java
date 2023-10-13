@@ -17,6 +17,7 @@ public class ContainsCookieTest extends MatcherTestCase {
     fromCookieHelper(hi, "testCookieName2", "testCookieValue", false);
     fromCookieHelper(hi, "testCookieName", "2testCookieValue2", true);
     fromCookieHelper(hi, "testCookieName", "test2CookieValue", false);
+    fromCookieHelper(hi, null, null, false);
   }
 
   @Test

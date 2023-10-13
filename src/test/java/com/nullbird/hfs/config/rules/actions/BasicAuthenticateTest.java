@@ -35,6 +35,22 @@ public class BasicAuthenticateTest {
   }
 
   @Test
+  public void unauthenticatedTestNoCookies() {
+    var actiom = buildAction();
+
+    var response = new TestResponse();
+    var req = TestRequest.fromUrl("http://anything/");
+    req.setCookieValues(null);
+    actiom.run(req, response, null);
+    assertEquals(401, response.getStatus());
+    assertNotNull(response.getBody());
+    String body = new String(response.getBody(), StandardCharsets.UTF_8);
+    assertTrue(body.length() > 0);
+    assertTrue(body.startsWith("<html>"));
+    assertTrue(body.contains("<input "));
+  }
+
+  @Test
   public void authenticatedTest() {
     var action = buildAction();
     var response = new TestResponse();
