@@ -22,6 +22,8 @@ public class RuleActionDeserializer  implements JsonDeserializer<RuleAction> {
           return jsonDeserializationContext.deserialize(jsonElement, BasicAuthenticate.class);
         case "HttpRedirect":
           return jsonDeserializationContext.deserialize(jsonElement, HttpRedirect.class);
+        case "OverrideHost":
+          return jsonDeserializationContext.deserialize(jsonElement, OverrideHost.class);
         case "ReverseProxy":
           return jsonDeserializationContext.deserialize(jsonElement, ReverseProxy.class);
         case "RespondLiteral":

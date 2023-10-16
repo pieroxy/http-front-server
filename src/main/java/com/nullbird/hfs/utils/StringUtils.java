@@ -57,6 +57,13 @@ public class StringUtils {
   }
 
   public static String getHtmlErrorMessage(String message) {
-        return "<html><body><h1>"+message+"</h1></body></html>\r\n";
+      return "<html><body><h1>" + message + "</h1></body></html>\r\n";
+  }
+
+  public static String replaceHost(String url, String host) {
+      int first = url.indexOf("://");
+      int second = url.indexOf("/", first + 4);
+      url = url.substring(0, first+3) + host + (second == -1 ? "" : url.substring(second));
+      return url;
   }
 }

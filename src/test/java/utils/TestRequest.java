@@ -2,6 +2,7 @@ package utils;
 
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
+import com.nullbird.hfs.utils.StringUtils;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.net.URIBuilder;
 
@@ -134,6 +135,12 @@ public class TestRequest implements HttpRequest {
   @Override
   public String getRemoteAddr() {
     return remoteAddr;
+  }
+
+  @Override
+  public void setHost(String host) {
+    headers.put(HttpHeaders.HOST, List.of(host));
+    url = StringUtils.replaceHost(url, host);
   }
 
   public void setRemoteAddr(String remoteAddr) {

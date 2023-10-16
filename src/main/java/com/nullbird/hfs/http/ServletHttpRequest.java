@@ -1,10 +1,12 @@
 package com.nullbird.hfs.http;
 
 import com.nullbird.hfs.utils.StreamUtils;
+import com.nullbird.hfs.utils.StringUtils;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.hc.core5.http.HttpHeaders;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -21,6 +23,7 @@ public class ServletHttpRequest implements HttpRequest {
 
   private final HttpServletRequest request;
   private ServletHttpResponse response;
+  private String host;
   private String url = null;
 
   private Map<String, String> postFormData;
@@ -28,6 +31,7 @@ public class ServletHttpRequest implements HttpRequest {
   public ServletHttpRequest(HttpServletRequest request, HttpServletResponse response) {
     this.request = request;
     this.response = new ServletHttpResponse(response);
+    this.host = request.getHeader(HttpHeaders.HOST);
   }
 
   public String getMethod() {
@@ -51,13 +55,19 @@ public class ServletHttpRequest implements HttpRequest {
   @Override
   public String getUrl() {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getUrl() :: " + request.getRequestURL());
-    if (url == null) url = request.getRequestURL().toString();
+    if (url == null) {
+      url = request.getRequestURL().toString();
+      if (StringUtils.containsNonWhitespace(this.host)) {
+        url = StringUtils.replaceHost(url, this.host);
+      }
+    }
     return url;
   }
 
   @Override
   public String getHeader(String name) {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getHeader("+name+") :: " + request.getHeader(name));
+    if (name.equalsIgnoreCase(HttpHeaders.HOST)) return host;
     return request.getHeader(name);
   }
 
@@ -70,6 +80,7 @@ public class ServletHttpRequest implements HttpRequest {
   @Override
   public Enumeration<String> getHeaders(String name) {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getHeaders() :: not computing");
+    if (name.equalsIgnoreCase(HttpHeaders.HOST)) return Collections.enumeration(List.of(host));
     return request.getHeaders(name);
   }
 
@@ -77,6 +88,12 @@ public class ServletHttpRequest implements HttpRequest {
   public String getRemoteAddr() {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getRemoteAddr() :: " + request.getRemoteAddr());
     return request.getRemoteAddr();
+  }
+
+  @Override
+  public void setHost(String host) {
+    this.host = host;
+    this.url = null;
   }
 
   @Override
@@ -152,5 +169,4 @@ public class ServletHttpRequest implements HttpRequest {
       }
     });
   }
-
 }

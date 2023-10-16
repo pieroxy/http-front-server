@@ -25,6 +25,7 @@ public interface HttpRequest {
   Enumeration<String> getHeaders(String name);
 
   String getRemoteAddr();
+  void setHost(String host);
 
   String getScheme();
   String getPath();
