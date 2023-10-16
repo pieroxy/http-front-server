@@ -26,6 +26,8 @@ public class RuleMatcherDeserializer  implements JsonDeserializer<RuleMatcher> {
           return jsonDeserializationContext.deserialize(jsonElement, URLSubstringMatcher.class);
         case "HostIs":
           return jsonDeserializationContext.deserialize(jsonElement, HostIs.class);
+        case "HostIsIn":
+          return jsonDeserializationContext.deserialize(jsonElement, HostIsIn.class);
         case "ContainsCookie":
           return jsonDeserializationContext.deserialize(jsonElement, ContainsCookie.class);
         case "And":
