@@ -137,6 +137,7 @@ public class ServletHttpRequest implements HttpRequest {
   public HttpResponse getAsyncResponse(HttpResponse syncResponse) {
     if (response.hasAsyncContext()) return response;
     final AsyncContext asyncContext = request.startAsync(request, ((ServletHttpResponse)syncResponse).getHttpServletResponse());
+    asyncContext.setTimeout(0); // The http client has a timeout already.
     return response = new ServletHttpResponse((HttpServletResponse) asyncContext.getResponse(), asyncContext);
   }
 

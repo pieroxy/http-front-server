@@ -18,6 +18,7 @@ import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.nio.support.AsyncRequestBuilder;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.util.Timeout;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -185,6 +186,7 @@ public class ReverseProxyImpl  {
   protected CloseableHttpAsyncClient createAndStartHttpClient() {
     // TODO: Set timeouts and other configuration
     final IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
+            .setSoTimeout(Timeout.ofMilliseconds(conf.getConnectionTimeoutMs()))
             .build();
     PoolingAsyncClientConnectionManager connectionManager = PoolingAsyncClientConnectionManagerBuilder.create()
             .setMaxConnPerRoute(500)

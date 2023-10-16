@@ -35,6 +35,13 @@ public class ReverseProxy implements RuleAction {
   protected boolean doForwardIP = true;
 
   /**
+   * Determines the time the reverse proxy will wait for the backend to respond. A timeout error will be
+   * thrown if the timeout is reached and a http error 500 will be produced.
+   * <br>Default value is <b>0</b>, meaning no timeout.
+   */
+  protected long connectionTimeoutMs = 0;
+
+  /**
    * If the backend host cannot be connected, this action can retry the request at a later time. This value indicate
    * how many retries should the action attempt before giving up. {@link #retriesEveryMs} must also be greater than
    * zero for this to have any effect.
@@ -110,5 +117,9 @@ public class ReverseProxy implements RuleAction {
 
   public void setIgnoreResponseHeaders(List<String> ignoreResponseHeaders) {
     this.ignoreResponseHeaders = ignoreResponseHeaders;
+  }
+
+  public long getConnectionTimeoutMs() {
+    return connectionTimeoutMs;
   }
 }
