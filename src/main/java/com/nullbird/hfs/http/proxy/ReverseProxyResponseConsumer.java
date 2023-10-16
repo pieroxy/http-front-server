@@ -35,6 +35,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
   public final static String MSG_BAD_GATEWAY = "The proxy could not reach the backend server. Logs will provide more details.";
   public final static String MSG_GATEWAY_TIMEOUT = "The backend server timed out.";
   private final HttpResponse response;
+  private final int requestNumber;
   private WritableByteChannel __channel;
 
   private ReverseProxyHttpRequest requestData;
@@ -47,11 +48,12 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
     return __channel;
   }
 
-  public ReverseProxyResponseConsumer(HttpResponse response, ReverseProxy conf) {
+  public ReverseProxyResponseConsumer(HttpResponse response, ReverseProxy conf, int requestNumber) {
     this.response = response;
     this.conf = conf;
     if (conf.getIgnoreResponseHeaders()!=null)
       conf.getIgnoreResponseHeaders().forEach(h -> headersToIgnore.addHeader(new BasicHeader(h, null)));
+    this.requestNumber = requestNumber;
   }
 
 
@@ -113,13 +115,12 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
       // What can we do, really ?
     }
 
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing completed: " + requestData.getDebugInfos());
-
+    if (LOGGER.isLoggable(Level.FINE)) LOGGER.log(Level.FINE,"Request "+requestNumber+" complete ");
   }
   @Override
   public void releaseResources() {
     AtomicBoolean initiatedRetry = new AtomicBoolean(false);
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Request " + requestData.getDebugInfos() + " finished with status " + response.getStatus());
+    if (LOGGER.isLoggable(Level.FINE)) LOGGER.log(Level.FINE,"Request "+requestNumber+" finished with status " + response.getStatus());
     if (response.getStatus() == 0) {
       new Thread(() -> {
         try {
@@ -216,6 +217,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
     } else {
       markResponseComplete();
     }
+
     // The two below statements do break havoc on the whole thing. I need to refresh my knowledge of
     // apache httpcient 5
     //ExceptionCatcher.flush(response);

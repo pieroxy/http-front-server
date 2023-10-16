@@ -17,11 +17,13 @@ import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.nio.support.AsyncRequestBuilder;
 import org.apache.hc.core5.io.CloseMode;
+import org.apache.hc.core5.reactor.IOReactorConfig;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,6 +31,8 @@ public class ReverseProxyImpl  {
   private final static Logger LOGGER = Logger.getLogger(ReverseProxyImpl.class.getSimpleName());
 
   private ReverseProxy conf;
+
+  private transient AtomicInteger requestNumber;
 
   private transient HttpHost proxyHost;
   private transient CloseableHttpAsyncClient __proxyClient;
@@ -39,6 +43,11 @@ public class ReverseProxyImpl  {
 
   public void run(HttpRequest request, HttpResponse response) throws ProxyException {
     try {
+      int requestNumber=0;
+      if (LOGGER.isLoggable(Level.FINE)) {
+        if (this.requestNumber==null) this.requestNumber = new AtomicInteger();
+        requestNumber = this.requestNumber.getAndIncrement();
+      }
       AsyncRequestBuilder proxyRequestBuilder = buildProxyRequest(request);
 
       if (request.getHeader(HttpHeaders.CONTENT_LENGTH) != null ||
@@ -51,7 +60,7 @@ public class ReverseProxyImpl  {
       setXForwardedHeaders(request, proxyRequestBuilder);
 
       // Execute the request
-      doExecute(request, response, proxyRequestBuilder);
+      doExecute(request, response, proxyRequestBuilder, requestNumber);
     } catch (ProxyException e) {
       throw e;
     } catch (Exception e) {
@@ -61,17 +70,17 @@ public class ReverseProxyImpl  {
     }
   }
 
-  private void doExecute(HttpRequest request, HttpResponse response, AsyncRequestBuilder proxyRequestBuilder) throws ProxyException {
+  private void doExecute(HttpRequest request, HttpResponse response, AsyncRequestBuilder proxyRequestBuilder, int requestNumber) throws ProxyException {
     var proxyRequest = proxyRequestBuilder.build();
     if (LOGGER.isLoggable(Level.FINE)) {
       String debugString = request.getUrl() + " >> " + proxyHost.toString();
-      LOGGER.fine("Executing request " + debugString);
+      LOGGER.log(Level.FINE,"Request "+requestNumber+" running  " + debugString);
     }
     try {
       HttpResponse asyncResponse = request.getAsyncResponse(response);
       new ReverseProxyHttpRequest(
               proxyRequest,
-              new ReverseProxyResponseConsumer(asyncResponse, conf),
+              new ReverseProxyResponseConsumer(asyncResponse, conf, requestNumber),
               this, asyncResponse, request.getUrl(), proxyHost.toString()).run();
     } catch (Exception e) {
       throw new ProxyException(e);
@@ -175,6 +184,8 @@ public class ReverseProxyImpl  {
 
   protected CloseableHttpAsyncClient createAndStartHttpClient() {
     // TODO: Set timeouts and other configuration
+    final IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
+            .build();
     PoolingAsyncClientConnectionManager connectionManager = PoolingAsyncClientConnectionManagerBuilder.create()
             .setMaxConnPerRoute(500)
             .setMaxConnTotal(500)
@@ -182,6 +193,7 @@ public class ReverseProxyImpl  {
     var client = HttpAsyncClients.custom()
             .setConnectionManager(connectionManager)
             .disableRedirectHandling()
+            .setIOReactorConfig(ioReactorConfig)
             .build();
     client.start();
 
