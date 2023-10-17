@@ -108,6 +108,7 @@
                 <echo file="src/main/resources/MVN_VER">${project.version}</echo>
                 <echo file="src/main/resources/GIT_REV">${GIT_REV}</echo>
                 <echo file="src/main/resources/GIT_DEPTH">${GIT_DEPTH}</echo>
+                <echo message="${GIT_REV}" />
               </target>
             </configuration>
             <goals>
