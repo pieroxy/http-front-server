@@ -57,7 +57,31 @@ public class StringUtils {
   }
 
   public static String getHtmlErrorMessage(String message) {
-      return "<html><body><h1>" + message + "</h1></body></html>\r\n";
+      return """
+          <html>
+              <head>
+                  <style>
+                      body {
+                          text-align: center;
+                      }
+                      h1 {
+                          border: 1px solid #eee;
+                          display: inline-block;
+                          margin-top: calc( 50vh - 7em );
+                          padding: 2em 1em;
+                          background-color: #f8f8f8;
+                          box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+                          font-family: Arial, Helvetica, sans-serif;
+                          max-width: 50%;
+                      }
+                  </style>
+              </head>
+              <body>
+                  <h1>
+                  """ + message + """
+                    </h1>
+                </body>
+            </html>\r\n""";
   }
 
   public static String replaceHost(String url, String host) {

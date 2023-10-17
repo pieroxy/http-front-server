@@ -136,7 +136,7 @@ public class ReverseProxyTest {
     assertEquals(HttpServletResponse.SC_BAD_GATEWAY, req.getResponse().getStatus());
     List<String> lines = Stream.of(new String(req.getResponse().getBody(), StandardCharsets.UTF_8).split("\\r?\\n"))
             .map(String::toLowerCase).toList();
-    assertTrue(lines.get(0).contains(ReverseProxyResponseConsumer.MSG_BAD_GATEWAY.toLowerCase()));
+    assertTrue(lines.stream().collect(Collectors.joining("\r\n")).contains(ReverseProxyResponseConsumer.MSG_BAD_GATEWAY.toLowerCase()));
   }
 
   @AfterAll
