@@ -15,12 +15,13 @@ java -jar nullbird-hfs-core-1.2.3.jar proxy-conf.json
 To install Java 17, you can either :
 
 * Download it from your store (Linux)
+  * On Ubuntu you can get it through `sudo apt install openjdk-17-jre`
 * Download it from the [official distros](https://openjdk.org/install/)
 
 ### The config file
 
 The program comes bundled with a template of a config file. In order to use it, run the program with the following 
-parameter: 
+parameter:
 
 ```shell
 java -jar nullbird-hfs-core-1.2.3.jar --save-config-template template.json
