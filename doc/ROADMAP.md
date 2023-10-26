@@ -18,7 +18,6 @@ In this file you will find what is next for nullbird-hfs
   * [Med] Multiple Action (That holds a list of actions, ex: Set a cookie & redirect)
 * https
   * [Hi] Handle directly certbot to update https certs
-  * [Top] More sane default options to the https stack
 * ReverseProxy
   * [Med] Allow a back end to use a provided self-signed certificate
 * Misc
@@ -32,9 +31,6 @@ In this file you will find what is next for nullbird-hfs
 
 ## Documentation
 
-* [Top] Documentation for the actions (javadoc).
-* [Top] Write a startup guide.
-* [Top] Write some CLI handling, with a default conf.
 * [Top] Write a startup guide with all actions and rules.
 
 ## Far away in the future
