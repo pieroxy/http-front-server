@@ -16,6 +16,8 @@ public class RuleActionDeserializer  implements JsonDeserializer<RuleAction> {
       String nodeType = typeObj.getAsString();
 
       switch (nodeType){
+        case "CertBotAutoRenewal":
+          return jsonDeserializationContext.deserialize(jsonElement, CertBotAutoRenewal.class);
         case "AddHttpHeader":
           return jsonDeserializationContext.deserialize(jsonElement, AddHttpHeader.class);
         case "BasicAuthenticate":
