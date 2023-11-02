@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
  */
 public class CertBotAutoRenewal implements RuleAction {
   private final static Logger LOGGER = Logger.getLogger(CertBotAutoRenewal.class.getSimpleName());
-  public final static String WEBROOT_PATH_PATTERN = "$WEBROOT_PATH";
 
   private transient TomcatSslConfig sslConfig;
   private transient Set<String> domainsSet;
