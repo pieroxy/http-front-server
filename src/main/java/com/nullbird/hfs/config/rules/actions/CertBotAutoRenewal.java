@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 /**
  * This action uses the installed binary of <code>certbot</code> to renew certificates for your domains.
- * It should be used in conjunction with the `All` rule as it needs to match certbot's servers requests
+ * It should be used in conjunction with the {@link com.nullbird.hfs.config.rules.matchers.All} rule as it needs to match certbot's servers requests
  * to validate the domain ownership.
  */
 public class CertBotAutoRenewal implements RuleAction {
