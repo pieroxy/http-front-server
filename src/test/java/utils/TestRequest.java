@@ -139,7 +139,11 @@ public class TestRequest implements HttpRequest {
 
   @Override
   public void setHost(String host) {
-    headers.put(HttpHeaders.HOST, List.of(host));
+    if (host == null) {
+      headers.remove(HttpHeaders.HOST);
+    } else {
+      headers.put(HttpHeaders.HOST, List.of(host));
+    }
     url = StringUtils.replaceHost(url, host);
   }
 

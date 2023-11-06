@@ -3,9 +3,11 @@ package com.nullbird.hfs.config.rules.matchers;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 import org.junit.jupiter.api.Test;
 import utils.MatcherTestCase;
+import utils.TestRequest;
 
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class HostIsInTest extends MatcherTestCase {
@@ -30,6 +32,17 @@ public class HostIsInTest extends MatcherTestCase {
     fromUrlHelper(hi, "https://abc.com:443/toto", false);
     fromUrlHelper(hi, "https://abcd.com/toto", false);
   }
+
+  @Test
+  public void testNoHostInRequest() {
+    HostIsIn hi = new HostIsIn();
+    hi.setHost(Set.of("abc.com"));
+    hi.setExcludePort(false);
+    TestRequest req = TestRequest.fromUrl("https://abc.com/toto");
+    req.setHost(null);
+    assertEquals(false, hi.match(req));
+  }
+
 
   @Test
   public void testConfigurationMissingHost() {

@@ -29,6 +29,7 @@ public class HostIs implements RuleMatcher {
   @Override
   public boolean match(HttpRequest request) {
     String value = request.getHeader("Host");
+    if (value == null) value = "";
 
     if (excludePort && value.contains(":")) {
       value = value.substring(0, value.indexOf(":"));
