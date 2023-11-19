@@ -17,6 +17,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,13 +42,21 @@ public class CertBotAutoRenewal implements RuleAction {
 
   /**
    * An array specifying the domain names this action should get https certs for.
+   * This parameter is mandatory.
    */
   protected List<String> domains;
 
   /**
    * Holds the full name of the certbot executable file on your system, for example <code>/usr/bin/certbot</code>.
+   * This parameter is mandatory.
    */
   protected String executable;
+
+  /**
+   * Email address for <code>certbot</code> registration
+   * This parameter is mandatory.
+   */
+  protected String email;
 
   @Override
   public void run(HttpRequest request, HttpResponse response, RuleMatcher matcher) throws Exception {
@@ -71,6 +80,7 @@ public class CertBotAutoRenewal implements RuleAction {
     sslConfig = config.getTomcatConfig().getSslConfig();
     if (domains==null || domains.size()<1) throw new ConfigurationException("CertBotAutoRenewal action definition must include a non empty 'domains' attribute");
     if (executable==null || executable.length()<7) throw new ConfigurationException("CertBotAutoRenewal action definition must include a non empty 'executable' attribute");
+    if (email==null || email.length()<7) throw new ConfigurationException("CertBotAutoRenewal action definition must include a non empty 'email' attribute");
     domainsSet = new HashSet<>(domains);
     new Thread(this::run).start();
   }
@@ -156,11 +166,15 @@ public class CertBotAutoRenewal implements RuleAction {
           "--expand",
           "-n",
           "--webroot",
+          "--agree-tos",
+          "--email",
+          email,
           "--webroot-path",
           tempDir.getCanonicalPath(),
           "-d",
           domains.stream().collect(Collectors.joining(","))
       };
+      LOGGER.info("Running " + Arrays.stream(args).collect(Collectors.joining(" ")));
 
       ProcessBuilder ps = new ProcessBuilder(args);
       ps.redirectErrorStream(true);
