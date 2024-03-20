@@ -56,9 +56,9 @@ public class TomcatBuilder {
       ctr.setProperty("address", config.getTomcatConfig().getAddress());
     }
     ctr.setProperty("compression", "on");
+    ctr.setProperty("maxConnections", "1000");
     ctr.setProperty("compressionMinSize", "512");
     ctr.setProperty("compressibleMimeType", "text/html, text/css, application/javascript, image/svg+xml, application/json");
-
   }
 
   Connector sslConnector;
