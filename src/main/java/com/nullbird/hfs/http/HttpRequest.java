@@ -11,6 +11,7 @@ public interface HttpRequest {
   String getUrl();
   String getHeader(String name);
   String getParameter(String name);
+  String getQueryString();
 
   /**
    *

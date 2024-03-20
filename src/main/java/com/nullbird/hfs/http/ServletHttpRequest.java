@@ -123,6 +123,11 @@ public class ServletHttpRequest implements HttpRequest {
   }
 
   @Override
+  public String getQueryString() {
+    return request.getQueryString();
+  }
+
+  @Override
   public List<String> getCookieValues(String name) {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getCookieValue("+name+") :: not computing");
     var cookies = request.getCookies();

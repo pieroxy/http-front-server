@@ -71,6 +71,11 @@ public class TestRequest implements HttpRequest {
   }
 
   @Override
+  public String getQueryString() {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
   public List<String> getCookieValues(String name) {
     if (cookieValues == null) return null;
     var res = new ArrayList<String>();
