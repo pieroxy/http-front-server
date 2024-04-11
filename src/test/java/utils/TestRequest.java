@@ -18,6 +18,7 @@ public class TestRequest implements HttpRequest {
   String method;
   String url;
   String path;
+  String queryString;
   Map<String, List<String>> headers;
   Map<String, List<String>> parameters;
   Map<String, String> cookieValues;
@@ -53,6 +54,9 @@ public class TestRequest implements HttpRequest {
     } catch (MalformedURLException | URISyntaxException e) {
       throw new RuntimeException(e);
     }
+    if (url.indexOf("?")>0) {
+      res.queryString = url.substring(url.indexOf("?")+1);
+    }
     return res;
   }
 
@@ -72,7 +76,7 @@ public class TestRequest implements HttpRequest {
 
   @Override
   public String getQueryString() {
-    throw new RuntimeException("Not implemented");
+    return queryString;
   }
 
   @Override

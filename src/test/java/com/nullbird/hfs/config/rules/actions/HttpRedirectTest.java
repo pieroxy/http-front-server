@@ -71,6 +71,39 @@ public class HttpRedirectTest {
     var action = new HttpRedirect();
     action.setSubstring(true);
     assertThrows(ConfigurationException.class, ()->action.initialize(basicConfig));
+  }
+  @Test
+  public void testNoQueryString() throws ConfigurationException {
+    var action = new HttpRedirect();
+    action.setTarget("http://blu");
+    action.setIncludeQueryString(false);
+    action.initialize(basicConfig);
 
+    TestResponse response;
+
+    action.run(TestRequest.fromUrl("http://comeon.com/"), response = new TestResponse(), null);
+    assertEquals("http://blu", response.getHeaders().get("Location"), "Header Location incorrect");
+    assertEquals(311, response.getStatus(), "Status do not match");
+
+    action.run(TestRequest.fromUrl("http://comeon.com/?queryString=nope"), response = new TestResponse(), null);
+    assertEquals("http://blu", response.getHeaders().get("Location"), "Header Location incorrect");
+    assertEquals(311, response.getStatus(), "Status do not match");
+  }
+  @Test
+  public void testQueryString() throws ConfigurationException {
+    var action = new HttpRedirect();
+    action.setTarget("http://blu");
+    action.setIncludeQueryString(true);
+    action.initialize(basicConfig);
+
+    TestResponse response;
+
+    action.run(TestRequest.fromUrl("http://comeon.com/"), response = new TestResponse(), null);
+    assertEquals("http://blu", response.getHeaders().get("Location"), "Header Location incorrect");
+    assertEquals(311, response.getStatus(), "Status do not match");
+
+    action.run(TestRequest.fromUrl("http://comeon.com/?queryString=nope"), response = new TestResponse(), null);
+    assertEquals("http://blu?queryString=nope", response.getHeaders().get("Location"), "Header Location incorrect");
+    assertEquals(311, response.getStatus(), "Status do not match");
   }
 }
