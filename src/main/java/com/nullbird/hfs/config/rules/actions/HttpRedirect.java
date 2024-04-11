@@ -49,7 +49,11 @@ public class HttpRedirect implements RuleAction {
     String toAdd = "";
     if (includeQueryString) {
       toAdd = request.getQueryString();
-      if (StringUtils.containsNonWhitespace(toAdd)) toAdd = "?" + toAdd;
+      if (StringUtils.containsNonWhitespace(toAdd)) {
+        toAdd = "?" + toAdd;
+      } else {
+        toAdd = "";
+      }
     }
     if (substring) {
       if (!(matcher instanceof SubstringRuleMatcher)) {
