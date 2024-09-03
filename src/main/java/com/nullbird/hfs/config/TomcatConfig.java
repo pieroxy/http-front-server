@@ -30,6 +30,26 @@ public class TomcatConfig {
    */
   protected TomcatSslConfig sslConfig;
 
+  /**
+   * The 404 error page. If not defined, the default Tomcat page will be shown.
+   */
+  protected String errorPage404;
+
+  /**
+   * The 400 error page. If not defined, the default Tomcat page will be shown.
+   */
+  protected String errorPage400;
+
+  /**
+   * The 500 error page. If not defined, the default Tomcat page will be shown.
+   */
+  protected String errorPage500;
+
+  /**
+   * The catch-all error page. On any error or exception, if defined, this page will be shown.
+   */
+  protected String errorPageAll;
+
   public int getHttpPort() {
     return httpPort;
   }
@@ -69,5 +89,21 @@ public class TomcatConfig {
 
   public void setHttpLogConfig(TomcatHttpLogConfig httpLogConfig) {
     this.httpLogConfig = httpLogConfig;
+  }
+
+  public String getErrorPage404() {
+    return errorPage404;
+  }
+
+  public String getErrorPage400() {
+    return errorPage400;
+  }
+
+  public String getErrorPage500() {
+    return errorPage500;
+  }
+
+  public String getErrorPageAll() {
+    return errorPageAll;
   }
 }

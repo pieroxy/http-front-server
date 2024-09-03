@@ -5,10 +5,12 @@ import com.nullbird.hfs.config.TomcatConfig;
 import com.nullbird.hfs.config.TomcatSslConfig;
 import com.nullbird.hfs.utils.StringUtils;
 import org.apache.catalina.Lifecycle;
+import org.apache.catalina.Valve;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.valves.AccessLogValve;
+import org.apache.catalina.valves.ErrorReportValve;
 import org.apache.tomcat.util.net.SSLHostConfig;
 import org.apache.tomcat.util.net.SSLHostConfigCertificate;
 
@@ -37,6 +39,7 @@ public class TomcatBuilder {
     addHttpConnector(config);
     addHttpsConnector(config);
     addMainContext(config.getTomcatConfig());
+    tomcat.getHost().getPipeline().addValve(getErrorValve(config.getTomcatConfig()));
     return tomcat;
   }
 
@@ -156,5 +159,29 @@ public class TomcatBuilder {
       accessLogValve.setPrefix(httpLog.getPrefix());
       ctx.addValve(accessLogValve);
     }
+  }
+
+  Valve getErrorValve(TomcatConfig tomcatConfig) {
+    var errorValve = new ErrorReportValve();
+    errorValve.setShowReport(false);
+    errorValve.setShowServerInfo(false);
+    if (tomcatConfig.getErrorPage400()!=null) {
+      LOGGER.log(Level.INFO, "Adding custom 400 page");
+      errorValve.setProperty("errorCode.400", tomcatConfig.getErrorPage400());
+    }
+    if (tomcatConfig.getErrorPage404()!=null) {
+      LOGGER.log(Level.INFO, "Adding custom 404 page");
+      errorValve.setProperty("errorCode.404", tomcatConfig.getErrorPage404());
+    }
+    if (tomcatConfig.getErrorPage500()!=null) {
+      LOGGER.log(Level.INFO, "Adding custom 500 page");
+      errorValve.setProperty("errorCode.500", tomcatConfig.getErrorPage500());
+    }
+    if (tomcatConfig.getErrorPageAll()!=null) {
+      LOGGER.log(Level.INFO, "Adding custom catch-all page");
+      errorValve.setProperty("errorCode.0", tomcatConfig.getErrorPageAll());
+      errorValve.setProperty("exceptionType.java.lang.Throwable", tomcatConfig.getErrorPageAll());
+    }
+    return errorValve;
   }
 }
