@@ -160,7 +160,7 @@ public class BasicAuthenticate implements RuleAction {
                 </form>
               </body>
             </html>
-            """, message, AUTH_LOGIN, AUTH_PASSWORD, AUTH_REDIRECT, redirect);
+            """, message, AUTH_LOGIN, AUTH_PASSWORD, AUTH_REDIRECT, StringUtils.formatForHTML(redirect));
     response.respond(HttpServletResponse.SC_UNAUTHORIZED, ContentType.TEXT_HTML, html);
   }
 

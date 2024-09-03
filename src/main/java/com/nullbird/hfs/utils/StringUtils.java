@@ -90,4 +90,35 @@ public class StringUtils {
       url = url.substring(0, first+3) + host + (second == -1 ? "" : url.substring(second));
       return url;
   }
+
+    public static String formatForHTML(String arg) {
+        if (arg == null)
+            return "";
+
+        return replace(replace(
+                replace(replace(arg, "&", "&amp;"), "\"", "&quot;"), ">",
+                "&gt;"), "<", "&lt;");
+    }
+
+    public static String replace(String str, String oldValue, String newValue) {
+        int index = str.indexOf(oldValue);
+
+        if (index == -1)
+            return str;
+        else {
+            int oldValueLen = oldValue.length();
+            int indexRemaining = 0;
+            StringBuilder result = new StringBuilder();
+
+            while (index != -1) {
+                result.append(str.substring(indexRemaining, index));
+                result.append(newValue);
+                index = str.indexOf(oldValue, indexRemaining = index + oldValueLen);
+            }
+            result.append(str.substring(indexRemaining));
+            return result.toString();
+        }
+    }
+
+
 }
