@@ -167,21 +167,41 @@ public class TomcatBuilder {
     errorValve.setShowServerInfo(false);
     if (tomcatConfig.getErrorPage400()!=null) {
       LOGGER.log(Level.INFO, "Adding custom 400 page");
+      assertFileExists(tomcatConfig.getErrorPage400());
       errorValve.setProperty("errorCode.400", tomcatConfig.getErrorPage400());
     }
     if (tomcatConfig.getErrorPage404()!=null) {
       LOGGER.log(Level.INFO, "Adding custom 404 page");
+      assertFileExists(tomcatConfig.getErrorPage404());
       errorValve.setProperty("errorCode.404", tomcatConfig.getErrorPage404());
     }
     if (tomcatConfig.getErrorPage500()!=null) {
       LOGGER.log(Level.INFO, "Adding custom 500 page");
+      assertFileExists(tomcatConfig.getErrorPage500());
       errorValve.setProperty("errorCode.500", tomcatConfig.getErrorPage500());
     }
     if (tomcatConfig.getErrorPageAll()!=null) {
       LOGGER.log(Level.INFO, "Adding custom catch-all page");
+      assertFileExists(tomcatConfig.getErrorPageAll());
       errorValve.setProperty("errorCode.0", tomcatConfig.getErrorPageAll());
       errorValve.setProperty("exceptionType.java.lang.Throwable", tomcatConfig.getErrorPageAll());
     }
     return errorValve;
+  }
+
+  private void assertFileExists(String filePath) {
+    var file = new File(filePath);
+    if (!file.exists()) {
+      LOGGER.log(Level.SEVERE, "The file " + filePath + " could not be found.");
+      return;
+    }
+    if (!file.isFile()) {
+      LOGGER.log(Level.SEVERE, "The file " + filePath + " is a directory.");
+      return;
+    }
+    if (!file.canRead()) {
+      LOGGER.log(Level.SEVERE, "The access is denied to file " + filePath + ".");
+      return;
+    }
   }
 }
