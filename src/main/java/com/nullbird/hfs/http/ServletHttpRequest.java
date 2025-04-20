@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -105,7 +107,9 @@ public class ServletHttpRequest implements HttpRequest {
   @Override
   public String getPath() {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getPath() :: " + request.getPathInfo() + " ? " + request.getQueryString());
-    String res = request.getPathInfo();
+    String res = Arrays.stream(request.getPathInfo().split("/"))
+                .map(segment -> URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20"))
+                .collect(Collectors.joining("/"));
     if (request.getQueryString() == null) return res;
     return res + "?" + request.getQueryString();
   }
