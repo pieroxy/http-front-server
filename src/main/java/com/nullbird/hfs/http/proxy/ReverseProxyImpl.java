@@ -22,11 +22,15 @@ import org.apache.hc.core5.util.Timeout;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class ReverseProxyImpl  {
   private final static Logger LOGGER = Logger.getLogger(ReverseProxyImpl.class.getSimpleName());
@@ -73,9 +77,9 @@ public class ReverseProxyImpl  {
 
   private void doExecute(HttpRequest request, HttpResponse response, AsyncRequestBuilder proxyRequestBuilder, int requestNumber) throws ProxyException {
     var proxyRequest = proxyRequestBuilder.build();
-    if (LOGGER.isLoggable(Level.FINE)) {
+    if (conf.isDumpAllRequests()) {
       String debugString = request.getUrl() + " >> " + proxyHost.toString();
-      LOGGER.log(Level.FINE,"Request "+requestNumber+" running  " + debugString);
+      LOGGER.log(Level.INFO,"Request "+requestNumber+" running  " + debugString);
     }
     try {
       HttpResponse asyncResponse = request.getAsyncResponse(response);
@@ -122,7 +126,9 @@ public class ReverseProxyImpl  {
   }
 
   private void addHeaderImpl(String name, String value, AsyncRequestBuilder addTo) {
-    LOGGER.finer("Header added: " + name + ": " + value);
+    if (conf.isDumpAllRequests()) {
+      LOGGER.info("Header added: " + name + ": " + value);
+    }
     addTo.addHeader(name, value);
   }
 
