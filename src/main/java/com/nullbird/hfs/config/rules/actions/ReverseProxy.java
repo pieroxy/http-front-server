@@ -57,6 +57,11 @@ public class ReverseProxy implements RuleAction {
   protected int retriesEveryMs = 0;
 
   /**
+   *
+   */
+  protected boolean dumpAllRequests = false;
+
+  /**
    * All http header names in this property will be wiped from the response.
    */
   protected List<String> ignoreResponseHeaders;
@@ -121,5 +126,13 @@ public class ReverseProxy implements RuleAction {
 
   public long getConnectionTimeoutMs() {
     return connectionTimeoutMs;
+  }
+
+  public boolean isDumpAllRequests() {
+    return dumpAllRequests;
+  }
+
+  public void setDumpAllRequests(boolean dumpAllRequests) {
+    this.dumpAllRequests = dumpAllRequests;
   }
 }
