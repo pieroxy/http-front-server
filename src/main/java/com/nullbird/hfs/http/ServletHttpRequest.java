@@ -107,9 +107,7 @@ public class ServletHttpRequest implements HttpRequest {
   @Override
   public String getPath() {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getPath() :: " + request.getPathInfo() + " ? " + request.getQueryString());
-    String res = Arrays.stream(request.getPathInfo().split("/"))
-                .map(segment -> URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20"))
-                .collect(Collectors.joining("/"));
+    String res = StringUtils.encodePartsBetweenSlashes(request.getPathInfo());
     if (request.getQueryString() == null) return res;
     return res + "?" + request.getQueryString();
   }
