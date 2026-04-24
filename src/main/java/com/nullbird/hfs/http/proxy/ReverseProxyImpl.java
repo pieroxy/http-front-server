@@ -7,6 +7,7 @@ import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.StringUtils;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 import com.nullbird.hfs.utils.errors.ProxyException;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
@@ -199,10 +200,14 @@ public class ReverseProxyImpl  {
             .setMaxConnPerRoute(500)
             .setMaxConnTotal(500)
             .build();
+    RequestConfig requestConfig = RequestConfig.custom()
+            .setConnectTimeout(Timeout.ofMilliseconds(conf.getConnectionTimeoutMs()))
+            .build();
     var client = HttpAsyncClients.custom()
             .setConnectionManager(connectionManager)
             .disableRedirectHandling()
             .setIOReactorConfig(ioReactorConfig)
+            .setDefaultRequestConfig(requestConfig)
             .build();
     client.start();
 
