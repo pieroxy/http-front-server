@@ -60,8 +60,10 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
 
   @Override
   protected void start(org.apache.hc.core5.http.HttpResponse httpResponse, ContentType contentType) {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing started: " +requestData.getDebugInfos() + " // First line: " + new StatusLine(httpResponse));
-    Arrays.stream(httpResponse.getHeaders()).forEach(h -> LOGGER.finer(h.toString()));
+    if (LOGGER.isLoggable(Level.FINER)) {
+      LOGGER.finer("Processing started: " + requestData.getDebugInfos() + " // First line: " + new StatusLine(httpResponse));
+      Arrays.stream(httpResponse.getHeaders()).forEach(h -> LOGGER.finer(h.toString()));
+    }
     int statusCode = httpResponse.getCode();
     response.setStatus(statusCode);
 
