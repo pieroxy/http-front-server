@@ -142,7 +142,8 @@ public class ReverseProxyImpl  {
     hopByHopHeaders = new HeaderGroup();
     String[] headers = new String[] {
             "Connection", "Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization",
-            "TE", "Trailers", "Transfer-Encoding", "Upgrade", "Expect" };
+            "TE", "Trailers", "Transfer-Encoding", "Upgrade", "Expect",
+            "X-Forwarded-For", "X-Forwarded-Proto" };
     for (String header : headers) {
       hopByHopHeaders.addHeader(new BasicHeader(header, null));
     }
