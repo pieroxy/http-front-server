@@ -206,6 +206,7 @@ public class ReverseProxyImpl  {
     var client = HttpAsyncClients.custom()
             .setConnectionManager(connectionManager)
             .disableRedirectHandling()
+            .disableCookieManagement()
             .setIOReactorConfig(ioReactorConfig)
             .setDefaultRequestConfig(requestConfig)
             .build();
