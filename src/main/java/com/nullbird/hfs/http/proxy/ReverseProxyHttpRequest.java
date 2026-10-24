@@ -13,17 +13,19 @@ public class ReverseProxyHttpRequest {
 
   private final String sourceDebugString;
   private final String destinationDebugString;
+  private final boolean clientSentUserAgent;
 
   private String debugInfos;
   private AtomicInteger attemptNo = new AtomicInteger();
 
-  public ReverseProxyHttpRequest(AsyncRequestProducer requestProducer, ReverseProxyResponseConsumer responseConsumer, ReverseProxyImpl proxy, HttpResponse asyncResponse, String sourceDebugString, String destinationDebugString) {
+  public ReverseProxyHttpRequest(AsyncRequestProducer requestProducer, ReverseProxyResponseConsumer responseConsumer, ReverseProxyImpl proxy, HttpResponse asyncResponse, String sourceDebugString, String destinationDebugString, boolean clientSentUserAgent) {
     this.requestProducer = requestProducer;
     this.responseConsumer = responseConsumer;
     this.proxy = proxy;
     this.asyncResponse = asyncResponse;
     this.sourceDebugString = sourceDebugString;
     this.destinationDebugString = destinationDebugString;
+    this.clientSentUserAgent = clientSentUserAgent;
     responseConsumer.setRequestData(this);
   }
 
@@ -48,6 +50,10 @@ public class ReverseProxyHttpRequest {
 
   public HttpResponse getAsyncResponse() {
     return asyncResponse;
+  }
+
+  public boolean isClientSentUserAgent() {
+    return clientSentUserAgent;
   }
 
   public int getAttemptNo() {

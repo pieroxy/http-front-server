@@ -8,17 +8,22 @@ import com.nullbird.hfs.utils.StringUtils;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 import com.nullbird.hfs.utils.errors.ProxyException;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
+import org.apache.hc.core5.http.EntityDetails;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.nio.support.AsyncRequestBuilder;
+import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
 
 import java.net.MalformedURLException;
@@ -40,6 +45,13 @@ import java.util.stream.Collectors;
 
 public class ReverseProxyImpl  {
   private final static Logger LOGGER = Logger.getLogger(ReverseProxyImpl.class.getSimpleName());
+
+  /** Context attribute telling {@link #stripInjectedUserAgent} that the client sent its own User-Agent. */
+  private final static String CLIENT_SENT_USER_AGENT = "hfs.clientSentUserAgent";
+  /** A pooled connection idle for longer than this is checked before being reused. */
+  private final static TimeValue VALIDATE_AFTER_INACTIVITY = TimeValue.ofSeconds(1);
+  /** Pooled connections idle for longer than this are closed. */
+  private final static TimeValue EVICT_IDLE_AFTER = TimeValue.ofSeconds(30);
 
   private ReverseProxy conf;
 
@@ -95,16 +107,20 @@ public class ReverseProxyImpl  {
       new ReverseProxyHttpRequest(
               proxyRequest,
               new ReverseProxyResponseConsumer(asyncResponse, conf, requestNumber),
-              this, asyncResponse, request.getUrl(), proxyHost.toString()).run();
+              this, asyncResponse, request.getUrl(), proxyHost.toString(),
+              request.getHeader(HttpHeaders.USER_AGENT) != null).run();
     } catch (Exception e) {
       throw new ProxyException(e);
     }
   }
 
   void tryExecute(ReverseProxyHttpRequest request) {
+    HttpClientContext context = HttpClientContext.create();
+    context.setAttribute(CLIENT_SENT_USER_AGENT, request.isClientSentUserAgent());
     final Future<Void> future = this.__proxyClient.execute(
             request.getRequestProducer(),
             request.getResponseConsumer(),
+            context,
             null);
      request.getAsyncResponse().setFuture(future);
   }
@@ -218,22 +234,36 @@ public class ReverseProxyImpl  {
     }
   }
 
+  /**
+   * The client is configured as a transport only: none of the user-agent features of HttpClient (cookies,
+   * redirects, retries, authentication, User-Agent injection) may alter what goes through.
+   */
   protected CloseableHttpAsyncClient createAndStartHttpClient() {
-    // TODO: Set timeouts and other configuration
     final IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
             .setSoTimeout(Timeout.ofMilliseconds(conf.getConnectionTimeoutMs()))
             .build();
     PoolingAsyncClientConnectionManager connectionManager = PoolingAsyncClientConnectionManagerBuilder.create()
             .setMaxConnPerRoute(500)
             .setMaxConnTotal(500)
+            // Retries are disabled, so lower the odds of reusing a connection the backend just closed
+            .setValidateAfterInactivity(VALIDATE_AFTER_INACTIVITY)
             .build();
     RequestConfig requestConfig = RequestConfig.custom()
             .setConnectTimeout(Timeout.ofMilliseconds(conf.getConnectionTimeoutMs()))
+            // Waiting for a free connection in the pool
+            .setConnectionRequestTimeout(Timeout.ofMilliseconds(conf.getConnectionTimeoutMs()))
+            .setAuthenticationEnabled(false)
             .build();
     var client = HttpAsyncClients.custom()
             .setConnectionManager(connectionManager)
+            .setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_1)
             .disableRedirectHandling()
             .disableCookieManagement()
+            .disableAutomaticRetries()
+            .disableAuthCaching()
+            .evictExpiredConnections()
+            .evictIdleConnections(EVICT_IDLE_AFTER)
+            .addRequestInterceptorLast(ReverseProxyImpl::stripInjectedUserAgent)
             .setIOReactorConfig(ioReactorConfig)
             .setDefaultRequestConfig(requestConfig)
             .build();
@@ -241,6 +271,15 @@ public class ReverseProxyImpl  {
 
     if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("New client created " + client);
     return client;
+  }
+
+  /**
+   * HttpClient always adds its own User-Agent when the request has none, and cannot be told not to.
+   */
+  static void stripInjectedUserAgent(org.apache.hc.core5.http.HttpRequest request, EntityDetails entity, HttpContext context) {
+    if (!Boolean.TRUE.equals(context.getAttribute(CLIENT_SENT_USER_AGENT))) {
+      request.removeHeaders(HttpHeaders.USER_AGENT);
+    }
   }
 
   public void stop() {

@@ -12,6 +12,7 @@ import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.message.StatusLine;
+import org.apache.hc.core5.util.DeadlineTimeoutException;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -37,6 +38,7 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
   public final static String MSG_INTERNAL_ERROR = "The proxy could not fulfill the request because of an internal failure.";
   public final static String MSG_BAD_GATEWAY = "The proxy could not reach the backend server. Logs will provide more details.";
   public final static String MSG_GATEWAY_TIMEOUT = "The backend server timed out.";
+  public final static String MSG_PROXY_SATURATED = "The proxy has too many requests in progress to this backend server.";
   private final HttpResponse response;
   private final int requestNumber;
   private WritableByteChannel __channel;
@@ -193,6 +195,12 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
                     HttpServletResponse.SC_BAD_GATEWAY,
                     ContentType.TEXT_HTML,
                     StringUtils.getHtmlErrorMessage(MSG_BAD_GATEWAY));
+          } else if (e.getCause() instanceof DeadlineTimeoutException) {
+            LOGGER.warning("No connection available in the pool (" + requestData.getDebugInfos() + ")");
+            response.respond(
+                    HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    ContentType.TEXT_HTML,
+                    StringUtils.getHtmlErrorMessage(MSG_PROXY_SATURATED));
           } else if (e.getCause() instanceof SocketTimeoutException) {
             LOGGER.warning("Request timed out (" + requestData.getDebugInfos() + ")");
             response.respond(
