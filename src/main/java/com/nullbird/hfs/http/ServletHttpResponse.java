@@ -96,6 +96,11 @@ public class ServletHttpResponse implements HttpResponse {
   }
 
   @Override
+  public boolean isCommitted() {
+    return response.isCommitted();
+  }
+
+  @Override
   public void addCookie(Cookie cookie) {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("addCookie("+cookie+")");
     response.addCookie(cookie);

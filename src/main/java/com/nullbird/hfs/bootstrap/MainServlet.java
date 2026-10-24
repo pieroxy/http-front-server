@@ -4,6 +4,7 @@ import com.nullbird.hfs.config.Config;
 import com.nullbird.hfs.utils.config.ConfigReader;
 import com.nullbird.hfs.config.rules.Rule;
 import com.nullbird.hfs.http.HttpRequest;
+import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.http.ServletHttpRequest;
 import com.nullbird.hfs.utils.StringUtils;
 import jakarta.servlet.annotation.WebServlet;
@@ -23,6 +24,7 @@ public class MainServlet extends HttpServlet {
   private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getSimpleName());
   private static final Logger CONCURRENT_REQUESTS_LOGGER = Logger.getLogger("concurrentRequests");
   private static final ContentType HTML_UTF8 = ContentType.create("text/html", StandardCharsets.UTF_8);
+  static final String MSG_RULE_FAILED = "The server could not process the request because of an internal failure.";
   private final AtomicLong nbRequestsInFlight = new AtomicLong();
 
   @Override
@@ -36,26 +38,49 @@ public class MainServlet extends HttpServlet {
       // read the body through a req.getParameter family of methods.
       req.getInputStream();
 
-      HttpRequest request = new ServletHttpRequest(req, res);
-      Config config = ConfigReader.getConfig();
+      process(new ServletHttpRequest(req, res), ConfigReader.getConfig());
+    } finally {
+      nbRequestsInFlight.decrementAndGet();
+    }
+  }
+
+  static void process(HttpRequest request, Config config) {
+    try {
       for (Rule rule : config.getRules()) {
         if (rule.getMatcher().match(request)) {
-          try {
-            rule.getAction().run(request, request.getResponse(), rule.getMatcher());
-          } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, request.getUrl(), e);
-          }
+          rule.getAction().run(request, request.getResponse(), rule.getMatcher());
         }
         if (request.getResponse().isConsumed()) return;
       }
-      LOGGER.log(Level.SEVERE, "The configuration doesn't have a rule for this request: " + req.getRequestURL());
-      request.getResponse().respond(
-              HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-              HTML_UTF8,
-              StringUtils.getHtmlErrorMessage("The configuration doesn't have a rule for this request."));
+    } catch (Exception e) {
+      // Never let the request fall through to the next rules: a failing rule could be protecting them.
+      LOGGER.log(Level.SEVERE, request.getUrl(), e);
+      respondInternalError(request.getResponse(), MSG_RULE_FAILED);
+      return;
+    }
+    LOGGER.log(Level.SEVERE, "The configuration doesn't have a rule for this request: " + request.getUrl());
+    request.getResponse().respond(
+            HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+            HTML_UTF8,
+            StringUtils.getHtmlErrorMessage("The configuration doesn't have a rule for this request."));
+  }
 
+  /**
+   * Responds with a 500 if nothing was sent to the client yet. In all cases, completes the response, which matters
+   * if an action started async processing before failing.
+   */
+  private static void respondInternalError(HttpResponse response, String message) {
+    try {
+      if (response.isCommitted()) {
+        LOGGER.severe("The response was already committed, the client may receive a truncated response.");
+      } else {
+        response.respond(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, HTML_UTF8, StringUtils.getHtmlErrorMessage(message));
+      }
+    } catch (Exception e) {
+      LOGGER.log(Level.SEVERE, "Could not send the error response", e);
     } finally {
-      nbRequestsInFlight.decrementAndGet();
+      response.consume();
+      response.doneProcessing();
     }
   }
 }

@@ -18,6 +18,7 @@ public class TestResponse implements HttpResponse {
   Map<String, String> headers = new HashMap<>();
   Map<String, Cookie> cookies = new HashMap<>();
   boolean consumed;
+  boolean committed;
   ByteArrayOutputStream body = new ByteArrayOutputStream();
   Object toNotifyOnCompletion=null;
   boolean processingCompleted;
@@ -47,6 +48,15 @@ public class TestResponse implements HttpResponse {
   @Override
   public boolean isConsumed() {
     return consumed;
+  }
+
+  @Override
+  public boolean isCommitted() {
+    return committed;
+  }
+
+  public void setCommitted(boolean committed) {
+    this.committed = committed;
   }
 
   @Override

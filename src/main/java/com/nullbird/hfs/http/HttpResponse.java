@@ -13,6 +13,11 @@ public interface HttpResponse {
   void respond(int statusCode, ContentType contentType, String content);
   boolean isConsumed();
 
+  /**
+   * @return true if the status and headers have already been sent to the client
+   */
+  boolean isCommitted();
+
   void addCookie(Cookie cookie);
 
   void addHeader(String name, String value);
