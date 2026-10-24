@@ -96,7 +96,8 @@ public class TestRequest implements HttpRequest {
   public Enumeration<String> getHeaders(String name) {
     List<String> values = headers.get(name);
     if (values!=null) return Collections.enumeration(values);
-    return null;
+    // Same as the servlet API: an empty enumeration when the header is absent
+    return Collections.emptyEnumeration();
   }
 
   @Override

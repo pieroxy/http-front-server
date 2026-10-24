@@ -25,12 +25,17 @@ public class ServletHttpRequest implements HttpRequest {
   private final HttpServletRequest request;
   private ServletHttpResponse response;
   private String host;
+  private final String path;
   private String url = null;
 
   private Map<String, String> postFormData;
 
-  public ServletHttpRequest(HttpServletRequest request, HttpServletResponse response) {
+  /**
+   * @param path The normalized path of the request, see {@link com.nullbird.hfs.utils.PathNormalizer}
+   */
+  public ServletHttpRequest(HttpServletRequest request, HttpServletResponse response, String path) {
     this.request = request;
+    this.path = path;
     this.response = new ServletHttpResponse(response);
     this.host = request.getHeader(HttpHeaders.HOST);
   }
@@ -51,13 +56,15 @@ public class ServletHttpRequest implements HttpRequest {
   }
 
   /**
-   * @return The part before the first ? or #
+   * @return The part before the first ? or #, with the normalized path
    */
   @Override
   public String getUrl() {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getUrl() :: " + request.getRequestURL());
     if (url == null) {
-      url = request.getRequestURL().toString();
+      // getRequestURL() is scheme://host:port followed by the raw getRequestURI()
+      String requestUrl = request.getRequestURL().toString();
+      url = requestUrl.substring(0, requestUrl.length() - request.getRequestURI().length()) + path;
       if (StringUtils.containsNonWhitespace(this.host)) {
         url = StringUtils.replaceHost(url, this.host);
       }
@@ -105,10 +112,9 @@ public class ServletHttpRequest implements HttpRequest {
 
   @Override
   public String getPath() {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getPath() :: " + request.getPathInfo() + " ? " + request.getQueryString());
-    String res = StringUtils.encodePartsBetweenSlashes(request.getPathInfo());
-    if (request.getQueryString() == null) return res;
-    return res + "?" + request.getQueryString();
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getPath() :: " + path + " ? " + request.getQueryString());
+    if (request.getQueryString() == null) return path;
+    return path + "?" + request.getQueryString();
   }
 
   @Override

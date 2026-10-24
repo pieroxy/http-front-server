@@ -6,7 +6,9 @@ import com.nullbird.hfs.config.rules.Rule;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.http.ServletHttpRequest;
+import com.nullbird.hfs.utils.PathNormalizer;
 import com.nullbird.hfs.utils.StringUtils;
+import com.nullbird.hfs.utils.errors.InvalidPathException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +26,7 @@ public class MainServlet extends HttpServlet {
   private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getSimpleName());
   private static final Logger CONCURRENT_REQUESTS_LOGGER = Logger.getLogger("concurrentRequests");
   private static final ContentType HTML_UTF8 = ContentType.create("text/html", StandardCharsets.UTF_8);
+  static final String MSG_INVALID_PATH = "The path of the request is invalid.";
   static final String MSG_RULE_FAILED = "The server could not process the request because of an internal failure.";
   private final AtomicLong nbRequestsInFlight = new AtomicLong();
 
@@ -38,7 +41,17 @@ public class MainServlet extends HttpServlet {
       // read the body through a req.getParameter family of methods.
       req.getInputStream();
 
-      process(new ServletHttpRequest(req, res), ConfigReader.getConfig());
+      String path;
+      try {
+        path = PathNormalizer.normalize(req.getRequestURI());
+      } catch (InvalidPathException e) {
+        LOGGER.info("Rejected: " + e.getMessage());
+        res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        res.setContentType(HTML_UTF8.toString());
+        res.getOutputStream().write(StringUtils.getHtmlErrorMessage(MSG_INVALID_PATH).getBytes(StandardCharsets.UTF_8));
+        return;
+      }
+      process(new ServletHttpRequest(req, res, path), ConfigReader.getConfig());
     } finally {
       nbRequestsInFlight.decrementAndGet();
     }

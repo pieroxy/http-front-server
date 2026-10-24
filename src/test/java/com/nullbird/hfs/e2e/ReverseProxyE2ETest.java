@@ -39,6 +39,7 @@ public class ReverseProxyE2ETest {
   private static final String HOST_TIMEOUT = "timeout.local";
   private static final String HOST_UNREACHABLE = "unreachable.local";
   private static final int TIMEOUT_MS = 1000;
+  private static final String ADMIN_BLOCKED = "admin is blocked";
 
   private RawBackend backend;
   private HfsTestServer hfs;
@@ -56,6 +57,10 @@ public class ReverseProxyE2ETest {
         {
           "rules": [
             {
+              "matcher": {"type": "URLRegexpMatcher", "regexp": "^http://[^/]+/admin(/|$)"},
+              "action": {"type": "RespondLiteral", "contentType": "text/plain", "content": "%s"}
+            },
+            {
               "matcher": {"type": "HostIs", "host": "%s"},
               "action": {"type": "ReverseProxy", "target": "%s", "connectionTimeoutMs": %d}
             },
@@ -69,7 +74,7 @@ public class ReverseProxyE2ETest {
             }
           ]
         }
-        """.formatted(HOST_TIMEOUT, target, TIMEOUT_MS, HOST_UNREACHABLE, closedPort, target));
+        """.formatted(ADMIN_BLOCKED, HOST_TIMEOUT, target, TIMEOUT_MS, HOST_UNREACHABLE, closedPort, target));
     client = new RawClient(hfs.getPort());
   }
 
@@ -202,11 +207,25 @@ public class ReverseProxyE2ETest {
   @Test
   public void invalidPathsAreRejectedTest() {
     List<Executable> checks = new ArrayList<>();
-    for (String path : List.of("/../a", "/a%2Fb")) {
+    for (String path : List.of("/../a", "/a%2Fb", "/a/..;x/b", "/a/.;x/b", "/a/%2e%2e;x/b", "/..;/a")) {
       checks.add(() -> {
         backend.reset();
         var response = client.get(path);
         assertEquals(400, response.status, path + " -> " + response);
+        assertEquals(0, backend.getReceived().size(), path + " must not reach the backend");
+      });
+    }
+    assertAll(checks);
+  }
+
+  @Test
+  public void matchersSeeTheNormalizedPathTest() {
+    List<Executable> checks = new ArrayList<>();
+    for (String path : List.of("/admin", "/admin/x", "/public/../admin", "/public/%2e%2e/admin/x", "//admin", "/%61dmin")) {
+      checks.add(() -> {
+        backend.reset();
+        var response = client.get(path);
+        assertEquals(ADMIN_BLOCKED, response.bodyAsString(), path + " must be caught by the /admin rule");
         assertEquals(0, backend.getReceived().size(), path + " must not reach the backend");
       });
     }
@@ -233,7 +252,7 @@ public class ReverseProxyE2ETest {
   @Test
   public void hopByHopHeadersAreStrippedTest() throws Exception {
     var response = client.get("/", List.of(
-        "Connection: X-Hop",
+        "Connection: X-Hop, Host",
         "X-Hop: must-not-be-forwarded",
         "Keep-Alive: timeout=5",
         "TE: trailers",
@@ -248,7 +267,8 @@ public class ReverseProxyE2ETest {
         () -> assertFalse(headers.getAll("Keep-Alive").contains("timeout=5"), "The client's Keep-Alive must not be forwarded"),
         () -> assertFalse(headers.getAll("Connection").stream().anyMatch(v -> v.toLowerCase(Locale.ROOT).contains("x-hop")),
             "The client's Connection must not be forwarded"),
-        () -> assertEquals("kept", headers.get("X-End-To-End")));
+        () -> assertEquals("kept", headers.get("X-End-To-End")),
+        () -> assertEquals("test.local", headers.get("Host"), "Host must never be stripped"));
   }
 
   @Test
@@ -369,6 +389,19 @@ public class ReverseProxyE2ETest {
     assertEquals("\"abc\"", response.headers.get("ETag"));
     assertEquals("application/json", response.headers.get("Content-Type"));
     assertEquals("{}", response.bodyAsString());
+  }
+
+  @Test
+  public void responseHopByHopHeadersAreStrippedTest() throws Exception {
+    backend.setHandler((request, socket, out) -> RawBackend.respond(out, "200 OK", List.of(
+        "Connection: X-Hop",
+        "X-Hop: must-not-be-forwarded",
+        "X-End-To-End: kept"), new byte[0]));
+    var response = client.get("/");
+    assertEquals(200, response.status, response.toString());
+    assertAll(
+        () -> assertFalse(response.headers.has("X-Hop"), "Header listed in Connection must be stripped"),
+        () -> assertEquals("kept", response.headers.get("X-End-To-End")));
   }
 
   @Test

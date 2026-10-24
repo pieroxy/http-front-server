@@ -26,7 +26,12 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -56,9 +61,12 @@ public class ReverseProxyImpl  {
       }
       AsyncRequestBuilder proxyRequestBuilder = buildProxyRequest(request);
 
-      if (request.getHeader(HttpHeaders.CONTENT_LENGTH) != null ||
-              request.getHeader(HttpHeaders.TRANSFER_ENCODING) != null) {
-        proxyRequestBuilder.setEntity(new ReverseProxyEntityProducer(null, request.getBodyStream()));
+      String transferEncoding = request.getHeader(HttpHeaders.TRANSFER_ENCODING);
+      String contentLength = request.getHeader(HttpHeaders.CONTENT_LENGTH);
+      if (transferEncoding != null) {
+        proxyRequestBuilder.setEntity(new ReverseProxyEntityProducer(null, request.getBodyStream(), -1));
+      } else if (contentLength != null) {
+        proxyRequestBuilder.setEntity(new ReverseProxyEntityProducer(null, request.getBodyStream(), Long.parseLong(contentLength.trim())));
       }
 
       copyRequestHeaders(request, proxyRequestBuilder);
@@ -118,12 +126,31 @@ public class ReverseProxyImpl  {
   }
 
   private void copyRequestHeaders(HttpRequest request, AsyncRequestBuilder proxyRequestBuilder) {
+    Set<String> connectionTokens = getConnectionTokens(Collections.list(request.getHeaders(HttpHeaders.CONNECTION)));
     // Get an Enumeration of all of the header names sent by the client
     Enumeration<String> enumerationOfHeaderNames = request.getHeaderNames();
     while (enumerationOfHeaderNames.hasMoreElements()) {
       String headerName = enumerationOfHeaderNames.nextElement();
+      if (connectionTokens.contains(headerName.toLowerCase(Locale.ROOT))) continue;
       copyRequestHeader(request, proxyRequestBuilder, headerName);
     }
+  }
+
+  /**
+   * The headers listed in <code>Connection</code> are hop-by-hop and must not be forwarded (RFC 9110, 7.6.1).
+   * <code>Host</code> is never considered hop-by-hop, so that a client cannot make the backend see its own name.
+   * @return The lowercase names of the headers listed in the provided <code>Connection</code> header values.
+   */
+  static Set<String> getConnectionTokens(List<String> connectionValues) {
+    Set<String> tokens = new HashSet<>();
+    for (String value : connectionValues) {
+      for (String token : value.split(",")) {
+        String name = token.trim().toLowerCase(Locale.ROOT);
+        if (!name.isEmpty()) tokens.add(name);
+      }
+    }
+    tokens.remove("host");
+    return tokens;
   }
 
   private void addHeaderImpl(String name, String value, AsyncRequestBuilder addTo) {

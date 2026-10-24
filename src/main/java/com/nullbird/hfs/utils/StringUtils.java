@@ -3,11 +3,8 @@ package com.nullbird.hfs.utils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.stream.Collectors;
 
 public class StringUtils {
 
@@ -122,11 +119,5 @@ public class StringUtils {
             result.append(str.substring(indexRemaining));
             return result.toString();
         }
-    }
-
-    public static String encodePartsBetweenSlashes(String string) {
-        return Arrays.stream(string.split("/", -1))
-            .map(segment -> URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20"))
-            .collect(Collectors.joining("/"));
     }
 }

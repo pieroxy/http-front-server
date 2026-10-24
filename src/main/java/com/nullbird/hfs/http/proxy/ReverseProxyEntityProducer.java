@@ -12,12 +12,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ReverseProxyEntityProducer extends AbstractBinAsyncEntityProducer {
   public static final int FRAGMENT_SIZE_HINT = 8192;
   private final InputStream input;
+  private final long contentLength;
   private final AtomicBoolean available = new AtomicBoolean(true);
   final byte[] buffer = new byte[FRAGMENT_SIZE_HINT];
 
-  public ReverseProxyEntityProducer(ContentType contentType, InputStream input) {
+  /**
+   * @param contentLength The length of the body, or -1 if unknown (the body is then sent chunked).
+   */
+  public ReverseProxyEntityProducer(ContentType contentType, InputStream input, long contentLength) {
     super(FRAGMENT_SIZE_HINT, contentType);
     this.input = input;
+    this.contentLength = contentLength;
+  }
+
+  @Override
+  public long getContentLength() {
+    return contentLength;
   }
 
   @Override

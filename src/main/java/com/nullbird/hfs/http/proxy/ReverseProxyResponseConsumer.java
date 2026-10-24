@@ -8,6 +8,7 @@ import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.async.methods.AbstractBinResponseConsumer;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.message.StatusLine;
@@ -19,6 +20,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -73,7 +76,10 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
 
   protected void copyResponseHeaders(org.apache.hc.core5.http.HttpResponse proxyResponse,
                                      HttpResponse response) {
+    Set<String> connectionTokens = ReverseProxyImpl.getConnectionTokens(
+            Arrays.stream(proxyResponse.getHeaders(HttpHeaders.CONNECTION)).map(Header::getValue).toList());
     for (Header header : proxyResponse.getHeaders()) {
+      if (connectionTokens.contains(header.getName().toLowerCase(Locale.ROOT))) continue;
       copyResponseHeader(proxyResponse, response, header);
     }
   }
