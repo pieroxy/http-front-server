@@ -11,8 +11,14 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.ContentType;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -26,11 +32,14 @@ import java.util.logging.Logger;
  * endpoints that are commonly targeted by hackers and bots, such as wordpress admin endpoints, or your test instance
  * that needs to be accessed through the Internet but you don't want your users to confuse it with the production
  * services.
+ * <br>The authentication cookie contains the login, an expiry date and an HMAC signature computed with
+ * {@link Config#hfsAuthSecret}, the cookie name and the user's password. Changing the password or removing the user
+ * invalidates the cookies previously delivered to this user.
  */
 public class BasicAuthenticate implements RuleAction {
   private static final Logger LOGGER = Logger.getLogger(BasicAuthenticate.class.getName());
   private static final Level DEBUG_LEVEL = Level.FINE;
-  public final String COOKIE_VALUE="OK";
+  private static final String HMAC_ALGORITHM = "HmacSHA256";
   public final String AUTH_LOGIN=this.getClass().getName() + ".login";
   public final String AUTH_PASSWORD=this.getClass().getName() + ".password";
   public final String AUTH_REDIRECT=this.getClass().getName() + ".target";
@@ -62,11 +71,13 @@ public class BasicAuthenticate implements RuleAction {
    */
   int cookieDurationInHours = 24*365;
 
+  private byte[] cookieKey;
+
 
   @Override
   public void run(HttpRequest request, HttpResponse response, RuleMatcher matcher) {
     var cookieValues = request.getCookieValues(cookieName);
-    if (cookieValues!=null && cookieValues.contains(COOKIE_VALUE)) {
+    if (cookieValues!=null && cookieValues.stream().anyMatch(this::isValidToken)) {
       if (LOGGER.isLoggable(DEBUG_LEVEL)) {
         LOGGER.log(DEBUG_LEVEL, "Letting request go through - " + request.getUrl());
       }
@@ -90,7 +101,7 @@ public class BasicAuthenticate implements RuleAction {
         if (Objects.equals(credentials.get(login), password)) {
           if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authentication successful - " + request.getUrl());
           // Authenticating the user
-          authenticate(response);
+          authenticate(login, password, response);
           response.sendRedirect(HttpServletResponse.SC_FOUND, target);
         } else {
           if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Authentication failed - " + request.getUrl());
@@ -100,7 +111,8 @@ public class BasicAuthenticate implements RuleAction {
         if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Request needs authentication - " + request.getUrl());
         showLoginPrompt(request, response);
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
+      // Whatever happens, the request must not go through unauthenticated.
       if (LOGGER.isLoggable(Level.INFO)) LOGGER.log(Level.INFO, "Request failed decoding and thus needs authentication - " + request.getUrl(), e);
       showLoginPrompt(request, response);
     }
@@ -164,16 +176,61 @@ public class BasicAuthenticate implements RuleAction {
     response.respond(HttpServletResponse.SC_UNAUTHORIZED, ContentType.TEXT_HTML, html);
   }
 
-  private void authenticate(HttpResponse response) {
-    var cookie = new Cookie(cookieName, COOKIE_VALUE);
+  private void authenticate(String login, String password, HttpResponse response) {
+    long expiry = System.currentTimeMillis() / 1000 + cookieDurationInHours * 3600L;
+    var cookie = new Cookie(cookieName, buildToken(login, password, expiry));
     cookie.setSecure(secure);
     cookie.setMaxAge(cookieDurationInHours*60*60);
     cookie.setHttpOnly(true);
     response.addCookie(cookie);
   }
 
+  /**
+   * The token is <code>base64url(login).expiry.base64url(signature)</code>
+   */
+  String buildToken(String login, String password, long expiry) {
+    String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(login.getBytes(StandardCharsets.UTF_8)) + "." + expiry;
+    return payload + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(sign(payload, password));
+  }
+
+  private boolean isValidToken(String token) {
+    try {
+      String[] parts = token.split("\\.", -1);
+      if (parts.length != 3) return false;
+      long expiry = Long.parseLong(parts[1]);
+      if (expiry < System.currentTimeMillis() / 1000) return false;
+      String login = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
+      String password = credentials.get(login);
+      if (password == null) return false;
+      byte[] expected = sign(parts[0] + "." + parts[1], password);
+      return MessageDigest.isEqual(expected, Base64.getUrlDecoder().decode(parts[2]));
+    } catch (Exception e) {
+      if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Malformed authentication cookie", e);
+      return false;
+    }
+  }
+
+  private byte[] sign(String payload, String password) {
+    return hmac(cookieKey, payload + "\n" + password);
+  }
+
+  private static byte[] hmac(byte[] key, String data) {
+    try {
+      Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+      mac.init(new SecretKeySpec(key, HMAC_ALGORITHM));
+      return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+    } catch (GeneralSecurityException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @Override
   public void initialize(Config config) throws ConfigurationException {
+    if (config == null || !StringUtils.containsNonWhitespace(config.getHfsAuthSecret())) {
+      throw new ConfigurationException("BasicAuthenticate requires a hfsAuthSecret in the configuration.");
+    }
+    // One key per cookie name, so that a cookie delivered for one cookie name is useless for another.
+    cookieKey = hmac(config.getHfsAuthSecret().getBytes(StandardCharsets.UTF_8), "BasicAuthenticate.cookie:" + cookieName);
     if (credentials == null) credentials = new HashMap<>();
     if (StringUtils.containsNonWhitespace(credentialsFile)) {
       Properties properties = new Properties();

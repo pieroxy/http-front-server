@@ -48,6 +48,14 @@ public class Config {
    */
   protected List<Rule> rules;
 
+  /**
+   * The secret used to sign the authentication cookies of {@link com.nullbird.hfs.config.rules.actions.BasicAuthenticate}.
+   * <br>If the configuration contains at least one <code>BasicAuthenticate</code> action and this entry is missing,
+   * a random secret is generated at startup and <b>written back into the configuration file</b>.
+   * <br>Changing this value invalidates all authentication cookies.
+   */
+  protected String hfsAuthSecret;
+
   public List<Rule> getRules() {
     return rules;
   }
@@ -78,6 +86,14 @@ public class Config {
 
   public void setLoggersLevel(Map<String, String> loggersLevel) {
     this.loggersLevel = loggersLevel;
+  }
+
+  public String getHfsAuthSecret() {
+    return hfsAuthSecret;
+  }
+
+  public void setHfsAuthSecret(String hfsAuthSecret) {
+    this.hfsAuthSecret = hfsAuthSecret;
   }
 
   public TomcatConfig getTomcatConfig() {

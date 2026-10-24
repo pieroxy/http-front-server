@@ -11,7 +11,6 @@ import org.apache.hc.core5.http.HttpHeaders;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -162,19 +161,21 @@ public class ServletHttpRequest implements HttpRequest {
     return postFormData;
   }
 
-  static void decodeInputStream(InputStream stream, Map<String, String> map) {
-    Scanner s = new Scanner(stream).useDelimiter("\\&");
-
-    s.forEachRemaining((pair) -> {
-      Scanner s2 = new Scanner(pair).useDelimiter("=");
-      String key = s2.next();
+  /**
+   * Malformed pairs (no <code>=</code>, invalid percent-encoding) are ignored.
+   */
+  static void decodeInputStream(InputStream stream, Map<String, String> map) throws IOException {
+    String body = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+    for (String pair : body.split("&")) {
+      int eq = pair.indexOf('=');
+      if (eq <= 0) continue;
       try {
-        String value = URLDecoder.decode(s2.next().trim(), "UTF-8");
+        String key = URLDecoder.decode(pair.substring(0, eq), StandardCharsets.UTF_8);
+        String value = URLDecoder.decode(pair.substring(eq + 1).trim(), StandardCharsets.UTF_8);
         map.put(key, value);
-      } catch (UnsupportedEncodingException
-               | NoSuchElementException ex) {
-        throw new RuntimeException("Could not decode x-www-form-urlencoded data", ex);
+      } catch (IllegalArgumentException e) {
+        if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Ignoring malformed x-www-form-urlencoded pair");
       }
-    });
+    }
   }
 }

@@ -1,5 +1,6 @@
 package com.nullbird.hfs.config.rules.actions;
 
+import com.nullbird.hfs.config.Config;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.HttpHeaders;
@@ -8,17 +9,46 @@ import utils.TestRequest;
 import utils.TestResponse;
 
 import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BasicAuthenticateTest {
+  private static Config buildConfig(String secret) {
+    var config = new Config();
+    config.setHfsAuthSecret(secret);
+    return config;
+  }
+
   private BasicAuthenticate buildAction() {
+    return buildAction("secret", Map.of("login", "password"), null);
+  }
+
+  private BasicAuthenticate buildAction(String secret, Map<String, String> credentials, String cookieName) {
     var action = new BasicAuthenticate();
-    action.setCredentials(new HashMap<>());
-    action.getCredentials().put("login", "password");
+    action.setCredentials(new HashMap<>(credentials));
+    if (cookieName != null) action.setCookieName(cookieName);
+    try {
+      action.initialize(buildConfig(secret));
+    } catch (ConfigurationException e) {
+      throw new RuntimeException(e);
+    }
     return action;
+  }
+
+  private TestResponse runWithCookie(BasicAuthenticate action, String cookieName, String cookieValue) {
+    var response = new TestResponse();
+    var request = TestRequest.fromUrl("http://anything/");
+    request.getCookieValues().put(cookieName, cookieValue);
+    action.run(request, response, null);
+    return response;
+  }
+
+  private long inOneHour() {
+    return System.currentTimeMillis() / 1000 + 3600;
   }
   @Test
   public void unauthenticatedTest() {
@@ -53,29 +83,99 @@ public class BasicAuthenticateTest {
   @Test
   public void authenticatedTest() {
     var action = buildAction();
-    var response = new TestResponse();
-    var request = TestRequest.fromUrl("http://anything/");
-    request.getCookieValues().put(action.getCookieName(), action.COOKIE_VALUE);
-    action.run(request, response, null);
+    String token = action.buildToken("login", "password", inOneHour());
+
+    var response = runWithCookie(action, action.getCookieName(), token);
     assertEquals(0, response.getStatus());
     assertFalse(response.isConsumed());
 
-    request.getCookieValues().clear();
-    request.getCookieValues().put(action.getCookieName(), action.COOKIE_VALUE + "2");
-    action.run(request, response, null);
+    response = runWithCookie(action, action.getCookieName(), token + "2");
     assertEquals(401, response.getStatus());
     assertTrue(response.isConsumed());
 
-    request.getCookieValues().clear();
-    request.getCookieValues().put(action.getCookieName()+"2", action.COOKIE_VALUE);
+    response = runWithCookie(action, action.getCookieName() + "2", token);
+    assertEquals(401, response.getStatus());
+    assertTrue(response.isConsumed());
+  }
+
+  @Test
+  public void forgedCookiesAreRejectedTest() {
+    var action = buildAction();
+    String valid = action.buildToken("login", "password", inOneHour());
+    String[] parts = valid.split("\\.");
+    for (String forged : List.of(
+        "OK",
+        "",
+        "...",
+        parts[0] + "." + parts[1],
+        parts[0] + "." + parts[1] + ".",
+        parts[0] + "." + (Long.parseLong(parts[1]) + 1) + "." + parts[2],
+        parts[0] + "." + parts[1] + ".!!notbase64!!",
+        parts[0] + "." + "notanumber" + "." + parts[2])) {
+      var response = runWithCookie(action, action.getCookieName(), forged);
+      assertEquals(401, response.getStatus(), "Forged cookie accepted: " + forged);
+    }
+  }
+
+  @Test
+  public void expiredCookieTest() {
+    var action = buildAction();
+    String token = action.buildToken("login", "password", System.currentTimeMillis() / 1000 - 1);
+    assertEquals(401, runWithCookie(action, action.getCookieName(), token).getStatus());
+  }
+
+  @Test
+  public void unknownUserTest() {
+    var action = buildAction();
+    String token = action.buildToken("someoneElse", "password", inOneHour());
+    assertEquals(401, runWithCookie(action, action.getCookieName(), token).getStatus());
+  }
+
+  @Test
+  public void passwordChangeInvalidatesCookieTest() {
+    var before = buildAction("secret", Map.of("login", "password"), null);
+    String token = before.buildToken("login", "password", inOneHour());
+    var after = buildAction("secret", Map.of("login", "newPassword"), null);
+    assertEquals(401, runWithCookie(after, after.getCookieName(), token).getStatus());
+  }
+
+  @Test
+  public void secretChangeInvalidatesCookieTest() {
+    var before = buildAction("secret", Map.of("login", "password"), null);
+    String token = before.buildToken("login", "password", inOneHour());
+    var after = buildAction("otherSecret", Map.of("login", "password"), null);
+    assertEquals(401, runWithCookie(after, after.getCookieName(), token).getStatus());
+  }
+
+  @Test
+  public void cookieNameScopesTheTokenTest() {
+    var zoneA = buildAction("secret", Map.of("login", "password"), "zoneA");
+    var zoneB = buildAction("secret", Map.of("login", "password"), "zoneB");
+    String tokenA = zoneA.buildToken("login", "password", inOneHour());
+    assertEquals(0, runWithCookie(zoneA, "zoneA", tokenA).getStatus());
+    assertEquals(401, runWithCookie(zoneB, "zoneB", tokenA).getStatus());
+  }
+
+  @Test
+  public void failingBodyDecodingShowsLoginPromptTest() {
+    var action = buildAction();
+    var request = new TestRequest() {
+      @Override
+      public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData() throws IOException {
+        throw new RuntimeException("Simulated decoding failure");
+      }
+    };
+    request.setUrl("http://anything/");
+    request.setMethod("POST");
+    request.setCookieValues(new HashMap<>());
+    var response = new TestResponse();
     action.run(request, response, null);
     assertEquals(401, response.getStatus());
     assertTrue(response.isConsumed());
   }
   @Test
   public void authenticateTest() {
-    var action = buildAction();
-    action.setCredentials(Map.of("user", "password"));
+    var action = buildAction("secret", Map.of("user", "password"), null);
     var request = TestRequest.fromUrl("http://anything/");
     request.setMethod("POST");
     request.getPostData().put(action.AUTH_LOGIN, "user");
@@ -85,14 +185,17 @@ public class BasicAuthenticateTest {
     action.run(request, response, null);
     assertEquals(HttpServletResponse.SC_FOUND, response.getStatus());
     assertNotNull(response.getCookie(action.cookieName));
-    assertEquals(action.COOKIE_VALUE, response.getCookie(action.cookieName).getValue());
     assertEquals("http://success", response.getHeaders().get(HttpHeaders.LOCATION));
+
+    // The delivered cookie must authenticate the next request
+    var next = runWithCookie(action, action.cookieName, response.getCookie(action.cookieName).getValue());
+    assertEquals(0, next.getStatus());
+    assertFalse(next.isConsumed());
   }
 
   @Test
   public void authenticateFailureTest() {
-    var action = buildAction();
-    action.setCredentials(Map.of("user", "password"));
+    var action = buildAction("secret", Map.of("user", "password"), null);
     var request = TestRequest.fromUrl("http://anything/");
     request.setMethod("POST");
     request.getPostData().put(action.AUTH_LOGIN, "user");
@@ -112,7 +215,16 @@ public class BasicAuthenticateTest {
   public void badConfigTest() throws ConfigurationException {
     var action = new BasicAuthenticate();
     action.setCredentials(new HashMap<>());
+    assertThrows(ConfigurationException.class,()->action.initialize(buildConfig("secret")));
+  }
+
+  @Test
+  public void missingSecretTest() {
+    var action = new BasicAuthenticate();
+    action.setCredentials(new HashMap<>(Map.of("login", "password")));
     assertThrows(ConfigurationException.class,()->action.initialize(null));
+    assertThrows(ConfigurationException.class,()->action.initialize(buildConfig(null)));
+    assertThrows(ConfigurationException.class,()->action.initialize(buildConfig("  ")));
   }
 
   // TODO The credentials file test
