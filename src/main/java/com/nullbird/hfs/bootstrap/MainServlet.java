@@ -68,7 +68,7 @@ public class MainServlet extends HttpServlet {
     } catch (Exception e) {
       // Never let the request fall through to the next rules: a failing rule could be protecting them.
       LOGGER.log(Level.SEVERE, request.getUrl(), e);
-      respondInternalError(request.getResponse(), MSG_RULE_FAILED);
+      respondInternalError(request.getResponse(), MSG_RULE_FAILED, e);
       return;
     }
     LOGGER.log(Level.SEVERE, "The configuration doesn't have a rule for this request: " + request.getUrl());
@@ -79,13 +79,15 @@ public class MainServlet extends HttpServlet {
   }
 
   /**
-   * Responds with a 500 if nothing was sent to the client yet. In all cases, completes the response, which matters
-   * if an action started async processing before failing.
+   * Responds with a 500 if nothing was sent to the client yet, or aborts the client connection otherwise, so that a
+   * truncated response does not look complete. In all cases, completes the response, which matters if an action
+   * started async processing before failing.
    */
-  private static void respondInternalError(HttpResponse response, String message) {
+  private static void respondInternalError(HttpResponse response, String message, Exception cause) {
     try {
       if (response.isCommitted()) {
-        LOGGER.severe("The response was already committed, the client may receive a truncated response.");
+        LOGGER.severe("The response was already committed, aborting the client connection.");
+        response.abort(cause);
       } else {
         response.respond(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, HTML_UTF8, StringUtils.getHtmlErrorMessage(message));
       }

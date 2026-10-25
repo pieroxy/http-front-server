@@ -111,21 +111,24 @@ public class MainServletTest {
 
     assertEquals(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, request.getResponse().getStatus());
     assertTrue(request.getResponse().isProcessingCompleted(), "The response must be completed, or the request hangs");
+    assertNull(request.getResponse().getAbortCause(), "Nothing was sent yet, the client must get the 500");
   }
 
   @Test
-  public void failureAfterCommitOnlyCompletesTheResponseTest() {
+  public void failureAfterCommitAbortsTheClientTest() {
+    var boom = new RuntimeException("boom");
     var failing = new TestAction(response -> {
       response.setStatus(200);
       response.getOutputStream().write("partial".getBytes(StandardCharsets.UTF_8));
       ((utils.TestResponse) response).setCommitted(true);
-      throw new RuntimeException("boom");
+      throw boom;
     });
     var request = TestRequest.fromUrl("http://anything/");
     MainServlet.process(request, config(rule(new TrueMatcher(), failing)));
 
     assertEquals(200, request.getResponse().getStatus());
     assertEquals("partial", new String(request.getResponse().getBody(), StandardCharsets.UTF_8));
+    assertSame(boom, request.getResponse().getAbortCause(), "The client must see the truncated response as failed");
     assertTrue(request.getResponse().isProcessingCompleted());
   }
 
