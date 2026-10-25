@@ -11,7 +11,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 public class TestResponse implements HttpResponse {
   int status;
@@ -22,9 +21,7 @@ public class TestResponse implements HttpResponse {
   ByteArrayOutputStream body = new ByteArrayOutputStream();
   Object toNotifyOnCompletion=null;
   boolean processingCompleted;
-
-  private Future<Void> future;
-
+  Throwable abortCause;
 
   @Override
   public void sendRedirect(int statusCode, String targetUrl) {
@@ -80,6 +77,20 @@ public class TestResponse implements HttpResponse {
   }
 
   @Override
+  public void flush() {
+    committed = true;
+  }
+
+  @Override
+  public void abort(Throwable cause) {
+    abortCause = cause;
+  }
+
+  public Throwable getAbortCause() {
+    return abortCause;
+  }
+
+  @Override
   public void doneProcessing() {
     processingCompleted = true;
     if (toNotifyOnCompletion!=null) {
@@ -122,18 +133,5 @@ public class TestResponse implements HttpResponse {
 
   public boolean isProcessingCompleted() {
     return processingCompleted;
-  }
-
-  @Override
-  public Future<Void> getFuture() {
-    return future;
-  }
-
-  @Override
-  public void setFuture(Future<Void> future) {
-    this.future = future;
-    synchronized (this) {
-      this.notifyAll();
-    }
   }
 }

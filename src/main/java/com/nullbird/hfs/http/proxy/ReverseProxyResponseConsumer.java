@@ -8,6 +8,7 @@ import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.async.methods.AbstractBinResponseConsumer;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.HeaderGroup;
@@ -16,19 +17,13 @@ import org.apache.hc.core5.util.DeadlineTimeoutException;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,6 +42,8 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
   private HeaderGroup headersToIgnore = new HeaderGroup();
 
   private final ReverseProxy conf;
+  /** The backend response has started: from now on, a failure can only abort the client connection. */
+  private volatile boolean responseStarted;
 
   private WritableByteChannel getChannel() throws IOException {
     if (__channel==null) __channel = Channels.newChannel(response.getOutputStream());
@@ -64,7 +61,8 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
 
 
   @Override
-  protected void start(org.apache.hc.core5.http.HttpResponse httpResponse, ContentType contentType) {
+  protected void start(org.apache.hc.core5.http.HttpResponse httpResponse, ContentType contentType) throws IOException {
+    responseStarted = true;
     if (LOGGER.isLoggable(Level.FINER)) {
       LOGGER.finer("Processing started: " + requestData.getDebugInfos() + " // First line: " + new StatusLine(httpResponse));
       Arrays.stream(httpResponse.getHeaders()).forEach(h -> LOGGER.finer(h.toString()));
@@ -74,6 +72,12 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
 
     copyResponseHeaders(httpResponse, response);
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Processing of headers completed: " +requestData.getDebugInfos());
+    try {
+      // The client gets the headers as soon as the backend sends them
+      response.flush();
+    } catch (IOException e) {
+      throw new ClientIOException(e);
+    }
   }
 
   protected void copyResponseHeaders(org.apache.hc.core5.http.HttpResponse proxyResponse,
@@ -112,10 +116,86 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
 
   @Override
   protected void data(ByteBuffer data, boolean endOfStream) throws IOException {
-    while (data.hasRemaining()) {
-      if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Transferring body: " + requestData.getDebugInfos() + " Chunk of " + data.remaining() + "bytes");
-      getChannel().write(data);
+    try {
+      while (data.hasRemaining()) {
+        if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Transferring body: " + requestData.getDebugInfos() + " Chunk of " + data.remaining() + "bytes");
+        getChannel().write(data);
+      }
+      // Streamed responses (SSE, long polling...) must not wait in Tomcat's buffer
+      response.flush();
+    } catch (IOException e) {
+      throw new ClientIOException(e);
     }
+  }
+
+  @Override
+  public void releaseResources() {
+    // The outcome of the exchange is handled in exchangeCompleted/exchangeFailed/exchangeCancelled
+  }
+
+  /**
+   * The backend response was fully transferred to the client.
+   */
+  void exchangeCompleted() {
+    if (LOGGER.isLoggable(Level.FINE)) LOGGER.log(Level.FINE,"Request "+requestNumber+" finished with status " + response.getStatus());
+    markResponseComplete();
+  }
+
+  void exchangeCancelled() {
+    LOGGER.warning("Request cancelled (" + requestData.getDebugInfos() + ")");
+    exchangeFailed(new CancellationException("Request cancelled"));
+  }
+
+  /**
+   * The exchange failed, on either side. Once the backend response has started, the client connection is aborted.
+   * Before, the client gets an error status, or the request is retried if the backend could not be connected.
+   */
+  void exchangeFailed(Exception e) {
+    try {
+      if (e instanceof ClientIOException) {
+        if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Client failure (" + requestData.getDebugInfos() + "): " + e);
+        response.abort(e);
+      } else if (responseStarted) {
+        LOGGER.warning("Backend failed during the response, aborting the client (" + requestData.getDebugInfos() + "): " + e);
+        response.abort(e);
+      } else if (e instanceof HttpHostConnectException && requestData.getProxy().scheduleRetry(requestData)) {
+        if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Host could not be reached, retrying (" + requestData.getDebugInfos() + ")");
+        return;
+      } else {
+        int status = getErrorStatus(e);
+        if (status == HttpServletResponse.SC_INTERNAL_SERVER_ERROR) {
+          LOGGER.log(Level.SEVERE, "Request errored out (" + requestData.getDebugInfos() + ")", e);
+        } else {
+          LOGGER.warning("Backend failure, responding " + status + " (" + requestData.getDebugInfos() + "): " + e);
+        }
+        response.respond(status, ContentType.TEXT_HTML, StringUtils.getHtmlErrorMessage(getErrorMessage(status)));
+      }
+    } catch (Exception e2) {
+      LOGGER.log(Level.SEVERE, "Handling the failure of the request (" + requestData.getDebugInfos() + ")", e2);
+      response.abort(e2);
+    }
+    markResponseComplete();
+  }
+
+  /**
+   * @return The status to send to the client when the exchange failed before the backend response started.
+   */
+  static int getErrorStatus(Exception e) {
+    if (e instanceof DeadlineTimeoutException) return HttpServletResponse.SC_SERVICE_UNAVAILABLE;
+    // Connect timeouts (ConnectTimeoutException) included
+    if (e instanceof SocketTimeoutException) return HttpServletResponse.SC_GATEWAY_TIMEOUT;
+    // Connection refused, unknown host, closed connection, malformed response...
+    if (e instanceof IOException || e instanceof HttpException) return HttpServletResponse.SC_BAD_GATEWAY;
+    return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+  }
+
+  private static String getErrorMessage(int status) {
+    return switch (status) {
+      case HttpServletResponse.SC_SERVICE_UNAVAILABLE -> MSG_PROXY_SATURATED;
+      case HttpServletResponse.SC_GATEWAY_TIMEOUT -> MSG_GATEWAY_TIMEOUT;
+      case HttpServletResponse.SC_BAD_GATEWAY -> MSG_BAD_GATEWAY;
+      default -> MSG_INTERNAL_ERROR;
+    };
   }
 
   private void markResponseComplete() {
@@ -126,118 +206,6 @@ public class ReverseProxyResponseConsumer extends AbstractBinResponseConsumer<Vo
     }
 
     if (LOGGER.isLoggable(Level.FINE)) LOGGER.log(Level.FINE,"Request "+requestNumber+" complete ");
-  }
-  @Override
-  public void releaseResources() {
-    AtomicBoolean initiatedRetry = new AtomicBoolean(false);
-    if (LOGGER.isLoggable(Level.FINE)) LOGGER.log(Level.FINE,"Request "+requestNumber+" finished with status " + response.getStatus());
-    if (response.getStatus() == 0) {
-      new Thread(() -> {
-        try {
-          int loop = 0;
-          while (response.getFuture() == null) {
-            if (loop++ > 1000) break;
-            synchronized (response) {
-              try {
-                response.wait(35);
-              } catch (Exception e) {
-              }
-            }
-          }
-          if (response.getFuture() == null) {
-
-            LOGGER.severe("No future set for the response.");
-            response.respond(
-                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    ContentType.TEXT_HTML,
-                    StringUtils.getHtmlErrorMessage(MSG_INTERNAL_ERROR));
-          } else {
-            response.getFuture().get(0, TimeUnit.MICROSECONDS);
-          }
-        } catch (ExecutionException e) {
-          if (e.getCause() instanceof HttpHostConnectException) {
-            if (requestData.getProxy().getConf().getMaxRetries() > 0 &&
-                    requestData.getProxy().getConf().getRetriesEveryMs() > 0) {
-              if (requestData.getProxy().getConf().getMaxRetries() < requestData.getAttemptNo()) {
-                LOGGER.warning("Host could not be reached after retries (" + requestData.getDebugInfos() + ")");
-                response.respond(
-                        HttpServletResponse.SC_BAD_GATEWAY,
-                        ContentType.TEXT_HTML,
-                        StringUtils.getHtmlErrorMessage(MSG_BAD_GATEWAY));
-
-              } else {
-                final var timer = new Timer();
-                timer.schedule(
-                        new TimerTask() {
-                          @Override
-                          public void run() {
-                            requestData.run();
-                            timer.cancel();
-                          }
-                        },
-                        requestData.getProxy().getConf().getRetriesEveryMs()
-                );
-                initiatedRetry.set(true);
-                return;
-              }
-
-
-            } else {
-              LOGGER.warning("Host could not be reached (" + requestData.getDebugInfos() + ")");
-              response.respond(
-                      HttpServletResponse.SC_BAD_GATEWAY,
-                      ContentType.TEXT_HTML,
-                      StringUtils.getHtmlErrorMessage(MSG_BAD_GATEWAY));
-            }
-          } else if (e.getCause() instanceof UnknownHostException) {
-            LOGGER.log(Level.WARNING, "Host could not be reached (" + requestData.getDebugInfos() + "): "+ e.getMessage());
-            response.respond(
-                    HttpServletResponse.SC_BAD_GATEWAY,
-                    ContentType.TEXT_HTML,
-                    StringUtils.getHtmlErrorMessage(MSG_BAD_GATEWAY));
-          } else if (e.getCause() instanceof DeadlineTimeoutException) {
-            LOGGER.warning("No connection available in the pool (" + requestData.getDebugInfos() + ")");
-            response.respond(
-                    HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    ContentType.TEXT_HTML,
-                    StringUtils.getHtmlErrorMessage(MSG_PROXY_SATURATED));
-          } else if (e.getCause() instanceof SocketTimeoutException) {
-            LOGGER.warning("Request timed out (" + requestData.getDebugInfos() + ")");
-            response.respond(
-                    HttpServletResponse.SC_GATEWAY_TIMEOUT,
-                    ContentType.TEXT_HTML,
-                    StringUtils.getHtmlErrorMessage(MSG_GATEWAY_TIMEOUT));
-          } else {
-            LOGGER.log(Level.SEVERE, "Request errored out (" + requestData.getDebugInfos() + ")", e);
-            response.respond(
-                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    ContentType.TEXT_HTML,
-                    StringUtils.getHtmlErrorMessage(MSG_INTERNAL_ERROR));
-          }
-        } catch (InterruptedException e) {
-          LOGGER.log(Level.SEVERE, "WTF ???", e);
-          response.respond(
-                  HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                  ContentType.TEXT_HTML,
-                  StringUtils.getHtmlErrorMessage(MSG_INTERNAL_ERROR));
-        } catch (TimeoutException e) {
-          LOGGER.log(Level.SEVERE, "The future set for the response did not resolve.", e);
-          response.respond(
-                  HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                  ContentType.TEXT_HTML,
-                  StringUtils.getHtmlErrorMessage(MSG_INTERNAL_ERROR));
-        } finally {
-          if (!initiatedRetry.get()) markResponseComplete();
-        }
-      }).start();
-    } else {
-      markResponseComplete();
-    }
-
-    // The two below statements do break havoc on the whole thing. I need to refresh my knowledge of
-    // apache httpcient 5
-    //ExceptionCatcher.flush(response);
-    //ExceptionCatcher.close(__channel);
   }
 
   public ReverseProxyHttpRequest getRequestData() {

@@ -148,6 +148,7 @@ public class TomcatBuilder {
     ctx.setClearReferencesObjectStreamClassCaches(false);
     ctx.setClearReferencesThreadLocals(false);
 
+    ctx.addValve(new ClientAborterValve());
     tomcat.addServlet(contextPath, "main", new MainServlet());
     ctx.addServletMappingDecoded("/*", "main");
     ctx.addLifecycleListener(new MainLifecycleListener());

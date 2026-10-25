@@ -13,7 +13,9 @@ import utils.e2e.RawBackend;
 import utils.e2e.RawClient;
 import utils.e2e.RawHttp;
 
+import java.io.BufferedInputStream;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,9 +23,11 @@ import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -426,6 +430,32 @@ public class ReverseProxyE2ETest {
     assertEquals(200, response.status, response.toString());
     assertTrue(response.complete, response.failure);
     assertArrayEquals(body, response.body);
+  }
+
+  @Test
+  public void streamedResponseIsNotBufferedTest() throws Exception {
+    var backendMayFinish = new CountDownLatch(1);
+    backend.setHandler((request, socket, out) -> {
+      RawBackend.respondNoBody(out, "200 OK", List.of("Content-Type: text/event-stream", "Transfer-Encoding: chunked"));
+      out.write("5\r\nfirst\r\n".getBytes(StandardCharsets.ISO_8859_1));
+      out.flush();
+      backendMayFinish.await(RawClient.READ_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      out.write("6\r\nsecond\r\n0\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1));
+    });
+    try (var socket = new Socket("localhost", hfs.getPort())) {
+      socket.setSoTimeout(5000);
+      socket.getOutputStream().write("GET /events HTTP/1.1\r\nHost: test.local\r\nConnection: close\r\n\r\n"
+          .getBytes(StandardCharsets.ISO_8859_1));
+      var in = new BufferedInputStream(socket.getInputStream());
+      // Both reads would time out if HFS waited for the end of the backend response
+      assertEquals("HTTP/1.1 200 ", RawHttp.readLine(in).substring(0, 13));
+      var headers = RawHttp.readHeaders(in);
+      assertEquals("text/event-stream", headers.get("Content-Type"));
+      int size = Integer.parseInt(RawHttp.readLine(in).trim(), 16);
+      assertEquals("first", new String(in.readNBytes(size), StandardCharsets.ISO_8859_1));
+    } finally {
+      backendMayFinish.countDown();
+    }
   }
 
   // =================================================================================================================

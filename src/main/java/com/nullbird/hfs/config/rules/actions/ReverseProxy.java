@@ -45,14 +45,14 @@ public class ReverseProxy implements RuleAction {
    * If the backend host cannot be connected, this action can retry the request at a later time. This value indicate
    * how many retries should the action attempt before giving up. {@link #retriesEveryMs} must also be greater than
    * zero for this to have any effect.
-   * <br>Default value is <b>0</b>, meaning an unreachable backend will lead to a 500 error.
+   * <br>Default value is <b>0</b>, meaning an unreachable backend will lead to a 502 error.
    */
   protected int maxRetries = 0;
   /**
    * If the backend host cannot be connected, this action can retry the request at a later time. This value indicate
    * how much time must be waited between two retries. {@link #maxRetries} must also be greater than
    * zero for this to have any effect.
-   * <br>Default value is <b>0</b>, meaning an unreachable backend will lead to a 500 error.
+   * <br>Default value is <b>0</b>, meaning an unreachable backend will lead to a 502 error.
    */
   protected int retriesEveryMs = 0;
 

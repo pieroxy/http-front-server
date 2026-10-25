@@ -8,7 +8,6 @@ import org.apache.hc.core5.http.ContentType;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,17 +16,22 @@ public class ServletHttpResponse implements HttpResponse {
   private final HttpServletResponse response;
   private boolean consumed = false;
   private final AsyncContext asyncContext;
+  private final ClientAborter aborter;
   private int status = 0;
-  private Future<Void> future;
 
-  protected ServletHttpResponse(HttpServletResponse response) {
+  /**
+   * @param aborter Can be null, {@link #abort} then only logs.
+   */
+  protected ServletHttpResponse(HttpServletResponse response, ClientAborter aborter) {
     this.response = response;
+    this.aborter = aborter;
     asyncContext = null;
   }
 
-  public ServletHttpResponse(HttpServletResponse response, AsyncContext asyncContext) {
+  public ServletHttpResponse(HttpServletResponse response, AsyncContext asyncContext, ClientAborter aborter) {
     this.response = response;
     this.asyncContext = asyncContext;
+    this.aborter = aborter;
     this.consumed = true; // AsyncContext means we're in the game.
   }
 
@@ -67,6 +71,22 @@ public class ServletHttpResponse implements HttpResponse {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getOutputStream()");
     consumed = true;
     return response.getOutputStream();
+  }
+
+  @Override
+  public void flush() throws IOException {
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("flush()");
+    response.flushBuffer();
+  }
+
+  @Override
+  public void abort(Throwable cause) {
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("abort(" + cause + ")");
+    if (aborter == null) {
+      LOGGER.severe("Cannot abort the response, the client may see it as complete.");
+      return;
+    }
+    aborter.abort(cause);
   }
 
   @Override
@@ -114,19 +134,6 @@ public class ServletHttpResponse implements HttpResponse {
 
   HttpServletResponse getHttpServletResponse() {
     return response;
-  }
-
-  @Override
-  public Future<Void> getFuture() {
-    return future;
-  }
-
-  @Override
-  public void setFuture(Future<Void> future) {
-    this.future = future;
-    synchronized (this) {
-      this.notifyAll();
-    }
   }
 
   public boolean hasAsyncContext() {

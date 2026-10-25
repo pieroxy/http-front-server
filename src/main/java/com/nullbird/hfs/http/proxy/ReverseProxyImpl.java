@@ -13,6 +13,7 @@ import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
+import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.EntityDetails;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpHost;
@@ -37,7 +38,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.concurrent.Future;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -59,6 +63,8 @@ public class ReverseProxyImpl  {
 
   private transient HttpHost proxyHost;
   private transient CloseableHttpAsyncClient __proxyClient;
+  /** Only created if retries are configured */
+  private transient ScheduledExecutorService retryScheduler;
 
   public ReverseProxyImpl(ReverseProxy conf) {
     this.conf = conf;
@@ -115,14 +121,48 @@ public class ReverseProxyImpl  {
   }
 
   void tryExecute(ReverseProxyHttpRequest request) {
-    HttpClientContext context = HttpClientContext.create();
-    context.setAttribute(CLIENT_SENT_USER_AGENT, request.isClientSentUserAgent());
-    final Future<Void> future = this.__proxyClient.execute(
-            request.getRequestProducer(),
-            request.getResponseConsumer(),
-            context,
-            null);
-     request.getAsyncResponse().setFuture(future);
+    ReverseProxyResponseConsumer consumer = request.getResponseConsumer();
+    try {
+      HttpClientContext context = HttpClientContext.create();
+      context.setAttribute(CLIENT_SENT_USER_AGENT, request.isClientSentUserAgent());
+      this.__proxyClient.execute(
+              request.getRequestProducer(),
+              consumer,
+              context,
+              new FutureCallback<>() {
+                @Override
+                public void completed(Void result) {
+                  consumer.exchangeCompleted();
+                }
+
+                @Override
+                public void failed(Exception ex) {
+                  consumer.exchangeFailed(ex);
+                }
+
+                @Override
+                public void cancelled() {
+                  consumer.exchangeCancelled();
+                }
+              });
+    } catch (Exception e) {
+      consumer.exchangeFailed(e);
+    }
+  }
+
+  /**
+   * Schedules a new attempt of a request whose backend could not be connected, if the configuration allows it.
+   * @return false if no retry was scheduled.
+   */
+  boolean scheduleRetry(ReverseProxyHttpRequest request) {
+    if (retryScheduler == null || request.getAttemptNo() > conf.getMaxRetries()) return false;
+    try {
+      retryScheduler.schedule(request::run, conf.getRetriesEveryMs(), TimeUnit.MILLISECONDS);
+      return true;
+    } catch (RejectedExecutionException e) {
+      // Stopping
+      return false;
+    }
   }
 
   private void setXForwardedHeaders(HttpRequest request, AsyncRequestBuilder proxyRequestBuilder) {
@@ -229,6 +269,13 @@ public class ReverseProxyImpl  {
       }
       proxyHost = new HttpHost(targetURL.getProtocol(), targetURL.getHost(), targetURL.getPort());
       __proxyClient = createAndStartHttpClient();
+      if (conf.getMaxRetries() > 0 && conf.getRetriesEveryMs() > 0) {
+        retryScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+          Thread thread = new Thread(r, "ReverseProxy-retries-" + conf.getTarget());
+          thread.setDaemon(true);
+          return thread;
+        });
+      }
     } catch (MalformedURLException e) {
       throw new ConfigurationException("Unable to parse provided target", e);
     }
@@ -284,6 +331,7 @@ public class ReverseProxyImpl  {
 
   public void stop() {
     LOGGER.info("Stopping http client");
+    if (retryScheduler != null) retryScheduler.shutdownNow();
     __proxyClient.close(CloseMode.GRACEFUL);
   }
 

@@ -52,7 +52,7 @@ public class RawHttp {
   /**
    * @return the line without its CRLF, or null if the stream ended before any byte was read.
    */
-  static String readLine(InputStream in) throws IOException {
+  public static String readLine(InputStream in) throws IOException {
     var buffer = new ByteArrayOutputStream();
     int previous = -1;
     while (true) {
@@ -70,7 +70,7 @@ public class RawHttp {
     }
   }
 
-  static Headers readHeaders(InputStream in) throws IOException {
+  public static Headers readHeaders(InputStream in) throws IOException {
     var headers = new Headers();
     while (true) {
       String line = readLine(in);

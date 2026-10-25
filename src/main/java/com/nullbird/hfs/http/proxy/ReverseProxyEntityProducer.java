@@ -38,7 +38,12 @@ public class ReverseProxyEntityProducer extends AbstractBinAsyncEntityProducer {
   @Override
   protected void produceData(StreamChannel<ByteBuffer> streamChannel) throws IOException {
     assert(available.get());
-    final int read = input.read(buffer);
+    final int read;
+    try {
+      read = input.read(buffer);
+    } catch (IOException e) {
+      throw new ClientIOException(e);
+    }
     if (read == -1) {
       streamChannel.endStream();
       available.set(false);

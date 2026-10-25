@@ -6,7 +6,6 @@ import org.apache.hc.core5.http.ContentType;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.concurrent.Future;
 
 public interface HttpResponse {
   void sendRedirect(int statusCode, String targetUrl);
@@ -27,10 +26,18 @@ public interface HttpResponse {
 
   OutputStream getOutputStream() throws IOException;
 
+  /**
+   * Sends to the client what has been written so far, committing the response if it was not already.
+   */
+  void flush() throws IOException;
+
+  /**
+   * Closes the client connection without completing the response, so that the client sees it as failed.
+   * {@link #doneProcessing()} must still be called afterwards.
+   */
+  void abort(Throwable cause);
+
   void doneProcessing();
 
   void consume();
-
-  void setFuture(Future<Void> future);
-  Future<Void> getFuture();
 }

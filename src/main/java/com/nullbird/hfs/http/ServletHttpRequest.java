@@ -1,5 +1,6 @@
 package com.nullbird.hfs.http;
 
+import com.nullbird.hfs.bootstrap.ClientAborterValve;
 import com.nullbird.hfs.utils.StreamUtils;
 import com.nullbird.hfs.utils.StringUtils;
 import jakarta.servlet.AsyncContext;
@@ -24,6 +25,7 @@ public class ServletHttpRequest implements HttpRequest {
 
   private final HttpServletRequest request;
   private ServletHttpResponse response;
+  private final ClientAborter aborter;
   private String host;
   private final String path;
   private String url = null;
@@ -36,7 +38,8 @@ public class ServletHttpRequest implements HttpRequest {
   public ServletHttpRequest(HttpServletRequest request, HttpServletResponse response, String path) {
     this.request = request;
     this.path = path;
-    this.response = new ServletHttpResponse(response);
+    this.aborter = (ClientAborter) request.getAttribute(ClientAborterValve.ATTRIBUTE);
+    this.response = new ServletHttpResponse(response, aborter);
     this.host = request.getHeader(HttpHeaders.HOST);
   }
 
@@ -150,7 +153,7 @@ public class ServletHttpRequest implements HttpRequest {
     if (response.hasAsyncContext()) return response;
     final AsyncContext asyncContext = request.startAsync(request, ((ServletHttpResponse)syncResponse).getHttpServletResponse());
     asyncContext.setTimeout(0); // The http client has a timeout already.
-    return response = new ServletHttpResponse((HttpServletResponse) asyncContext.getResponse(), asyncContext);
+    return response = new ServletHttpResponse((HttpServletResponse) asyncContext.getResponse(), asyncContext, aborter);
   }
 
 
