@@ -287,7 +287,7 @@ public class ReverseProxyImpl  {
    */
   protected CloseableHttpAsyncClient createAndStartHttpClient() {
     final IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
-            .setSoTimeout(Timeout.ofMilliseconds(conf.getConnectionTimeoutMs()))
+            .setSoTimeout(Timeout.ofMilliseconds(conf.getReadTimeoutMs()))
             .build();
     PoolingAsyncClientConnectionManager connectionManager = PoolingAsyncClientConnectionManagerBuilder.create()
             .setMaxConnPerRoute(500)
@@ -296,9 +296,9 @@ public class ReverseProxyImpl  {
             .setValidateAfterInactivity(VALIDATE_AFTER_INACTIVITY)
             .build();
     RequestConfig requestConfig = RequestConfig.custom()
-            .setConnectTimeout(Timeout.ofMilliseconds(conf.getConnectionTimeoutMs()))
+            .setConnectTimeout(Timeout.ofMilliseconds(conf.getConnectTimeoutMs()))
             // Waiting for a free connection in the pool
-            .setConnectionRequestTimeout(Timeout.ofMilliseconds(conf.getConnectionTimeoutMs()))
+            .setConnectionRequestTimeout(Timeout.ofMilliseconds(conf.getPoolWaitTimeoutMs()))
             .setAuthenticationEnabled(false)
             .build();
     var client = HttpAsyncClients.custom()

@@ -9,6 +9,7 @@ import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * This action will replay the http request to another backend host.
@@ -16,6 +17,13 @@ import java.util.List;
  * connection to HFS was secure (<code>https</code>) or not (<code>http</code>).
  */
 public class ReverseProxy implements RuleAction {
+  private final static Logger LOGGER = Logger.getLogger(ReverseProxy.class.getName());
+
+  public static final long DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
+  public static final long DEFAULT_READ_TIMEOUT_MS = 60_000;
+  /** The wait for a free connection in the pool, when {@link #connectTimeoutMs} is disabled */
+  public static final long DEFAULT_POOL_WAIT_TIMEOUT_MS = 60_000;
+
   /**
    * This "URL" represents the http backend host this action should forward requests to. It looks like an URL but
    * may only contain a protocol, host and port.
@@ -35,11 +43,27 @@ public class ReverseProxy implements RuleAction {
   protected boolean doForwardIP = true;
 
   /**
-   * Determines the time the reverse proxy will wait for the backend to respond. A timeout error will be
-   * thrown if the timeout is reached and a http error 500 will be produced.
-   * <br>Default value is <b>0</b>, meaning no timeout.
+   * The time the reverse proxy waits for the connection to the backend to be established, and for a free
+   * connection in the pool when all of them are busy. The client gets a 504 (connect) or a 503 (pool) when
+   * it is reached.
+   * <br>Default value is {@link #connectionTimeoutMs} if set, <b>10000</b> otherwise. <b>0</b> means no
+   * timeout for the connection (the pool wait is then {@value #DEFAULT_POOL_WAIT_TIMEOUT_MS}ms).
    */
-  protected long connectionTimeoutMs = 0;
+  protected Long connectTimeoutMs;
+
+  /**
+   * The longest time the backend may stay silent (no byte received) while the reverse proxy waits for, or reads,
+   * its response. This is not a limit on the total duration: a response that keeps sending data, like a stream
+   * of server-sent events, never reaches it. The client gets a 504 when it is reached before the response
+   * started, the connection is aborted otherwise.
+   * <br>Default value is {@link #connectionTimeoutMs} if set, <b>60000</b> otherwise. <b>0</b> means no timeout.
+   */
+  protected Long readTimeoutMs;
+
+  /**
+   * Older setting, used for both {@link #connectTimeoutMs} and {@link #readTimeoutMs} when they are not set.
+   */
+  protected Long connectionTimeoutMs;
 
   /**
    * If the backend host cannot be connected, this action can retry the request at a later time. This value indicate
@@ -75,6 +99,7 @@ public class ReverseProxy implements RuleAction {
 
   @Override
   public void initialize(Config config) throws ConfigurationException {
+    checkTimeouts();
     proxy = new ReverseProxyImpl(this);
     proxy.initialize(config);
   }
@@ -124,8 +149,57 @@ public class ReverseProxy implements RuleAction {
     this.ignoreResponseHeaders = ignoreResponseHeaders;
   }
 
-  public long getConnectionTimeoutMs() {
-    return connectionTimeoutMs;
+  private void checkTimeouts() throws ConfigurationException {
+    for (Long timeout : new Long[] {connectTimeoutMs, readTimeoutMs, connectionTimeoutMs}) {
+      if (timeout != null && timeout < 0) {
+        throw new ConfigurationException("ReverseProxy action to " + target + ": timeouts cannot be negative");
+      }
+    }
+    if (getConnectTimeoutMs() == 0) {
+      LOGGER.warning("ReverseProxy action to " + target + ": no connect timeout, connecting to the backend may wait forever.");
+    }
+    if (getReadTimeoutMs() == 0) {
+      LOGGER.warning("ReverseProxy action to " + target + ": no read timeout, a silent backend may hold requests forever.");
+    }
+  }
+
+  /**
+   * @return The effective connect timeout, see {@link #connectTimeoutMs}. 0 means no timeout.
+   */
+  public long getConnectTimeoutMs() {
+    if (connectTimeoutMs != null) return connectTimeoutMs;
+    if (connectionTimeoutMs != null) return connectionTimeoutMs;
+    return DEFAULT_CONNECT_TIMEOUT_MS;
+  }
+
+  /**
+   * @return The effective read timeout, see {@link #readTimeoutMs}. 0 means no timeout.
+   */
+  public long getReadTimeoutMs() {
+    if (readTimeoutMs != null) return readTimeoutMs;
+    if (connectionTimeoutMs != null) return connectionTimeoutMs;
+    return DEFAULT_READ_TIMEOUT_MS;
+  }
+
+  /**
+   * @return The time to wait for a free connection in the pool. Never 0, so that a saturated pool cannot hold
+   * requests forever.
+   */
+  public long getPoolWaitTimeoutMs() {
+    long connect = getConnectTimeoutMs();
+    return connect > 0 ? connect : DEFAULT_POOL_WAIT_TIMEOUT_MS;
+  }
+
+  public void setConnectTimeoutMs(Long connectTimeoutMs) {
+    this.connectTimeoutMs = connectTimeoutMs;
+  }
+
+  public void setReadTimeoutMs(Long readTimeoutMs) {
+    this.readTimeoutMs = readTimeoutMs;
+  }
+
+  public void setConnectionTimeoutMs(Long connectionTimeoutMs) {
+    this.connectionTimeoutMs = connectionTimeoutMs;
   }
 
   public boolean isDumpAllRequests() {
