@@ -31,6 +31,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -267,11 +268,43 @@ public class ReverseProxyImpl  {
     // The EntityProducer seems to handle this.
     if (headerName.equalsIgnoreCase(HttpHeaders.CONTENT_LENGTH)) return;
 
+    boolean removeAuthCookies = headerName.equalsIgnoreCase(HttpHeaders.COOKIE) && config != null
+            && !config.getAuthCookieNames().isEmpty();
     Enumeration<String> headers = servletRequest.getHeaders(headerName);
     while (headers.hasMoreElements()) { //sometimes more than one value
       String headerValue = headers.nextElement();
+      if (removeAuthCookies) {
+        headerValue = removeCookies(headerValue, config.getAuthCookieNames());
+        if (headerValue == null) continue;
+      }
       addHeaderImpl(headerName, headerValue, proxyRequest);
     }
+  }
+
+  /**
+   * The authentication cookies of HFS are for HFS only: a backend that logs them, or is less trusted than HFS,
+   * could replay them.
+   * @param cookieHeader A <code>Cookie</code> header value: <code>name=value; name2=value2</code>
+   * @param names The cookie names to remove (case-sensitive, like cookie names).
+   * @return The header value without these cookies, the others kept as sent: unchanged if there was none to
+   * remove. Null if no cookie is left.
+   */
+  static String removeCookies(String cookieHeader, Set<String> names) {
+    List<String> kept = new ArrayList<>();
+    boolean removed = false;
+    for (String cookie : cookieHeader.split(";")) {
+      String trimmed = cookie.trim();
+      if (trimmed.isEmpty()) continue;
+      int eq = trimmed.indexOf('=');
+      String name = (eq < 0 ? trimmed : trimmed.substring(0, eq)).trim();
+      if (names.contains(name)) {
+        removed = true;
+      } else {
+        kept.add(trimmed);
+      }
+    }
+    if (!removed) return cookieHeader;
+    return kept.isEmpty() ? null : String.join("; ", kept);
   }
 
   private AsyncRequestBuilder buildProxyRequest(HttpRequest request) throws ProxyException {

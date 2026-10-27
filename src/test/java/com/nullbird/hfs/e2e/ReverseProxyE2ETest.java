@@ -569,6 +569,26 @@ public class ReverseProxyE2ETest {
   }
 
   @Test
+  public void authCookieIsNotForwardedTest() throws Exception {
+    // Logged in on auth.local, then going through to the backend
+    byte[] body = loginBody("password", 0);
+    var login = client.send("POST", "/", HOST_AUTH, List.of(FORM.get(0), "Content-Length: " + body.length), body);
+    String cookie = login.headers.get("Set-Cookie").split(";")[0];
+    var response = client.send("GET", "/", HOST_AUTH, List.of("Cookie: a=1; " + cookie + "; b=2"), null);
+    assertEquals(200, response.status, response.toString());
+    assertEquals(List.of("a=1; b=2"), backend.getSingleReceived().headers().getAll("Cookie"));
+
+    // Also on hosts without BasicAuthenticate, as the browser sends it there too
+    backend.reset();
+    client.send("GET", "/", "test.local", List.of("Cookie: " + cookie), null);
+    assertFalse(backend.getSingleReceived().headers().has("Cookie"), "No Cookie header left");
+
+    backend.reset();
+    client.send("GET", "/", "test.local", List.of("Cookie: a=1;b=2"), null);
+    assertEquals(List.of("a=1;b=2"), backend.getSingleReceived().headers().getAll("Cookie"), "Other cookies untouched");
+  }
+
+  @Test
   public void nonFormRequestIsNotAuthenticatedTest() throws Exception {
     byte[] body = loginBody("password", 0);
     var response = client.send("POST", "/", HOST_AUTH,

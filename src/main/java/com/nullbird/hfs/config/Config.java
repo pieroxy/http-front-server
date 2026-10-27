@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class represents the configuration of the http front server.
@@ -80,6 +81,7 @@ public class Config {
    */
   protected List<String> trustedProxies;
   private transient List<IpRange> trustedProxyRanges = List.of();
+  private transient Set<String> authCookieNames = Set.of();
 
   public List<Rule> getRules() {
     return rules;
@@ -191,6 +193,18 @@ public class Config {
       if (!isTrustedProxy(client)) return client;
     }
     return client;
+  }
+
+  /**
+   * @return The names of the cookies delivered by the {@link com.nullbird.hfs.config.rules.actions.BasicAuthenticate}
+   * actions, which must not reach the backends.
+   */
+  public Set<String> getAuthCookieNames() {
+    return authCookieNames;
+  }
+
+  public void setAuthCookieNames(Set<String> authCookieNames) {
+    this.authCookieNames = Set.copyOf(authCookieNames);
   }
 
   public TomcatConfig getTomcatConfig() {

@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class ConfigReader {
   private final static Logger LOGGER = Logger.getLogger(ConfigReader.class.getName());
@@ -64,6 +65,10 @@ public class ConfigReader {
           "for backends that ignore them.");
     }
     config.parseTrustedProxies();
+    config.setAuthCookieNames(config.getRules().stream()
+        .filter(rule -> rule.getAction() instanceof BasicAuthenticate)
+        .map(rule -> ((BasicAuthenticate) rule.getAction()).getCookieName())
+        .collect(Collectors.toSet()));
     ensureAuthSecret(config);
     for (Rule rule : config.getRules()) {
       rule.init(config);
