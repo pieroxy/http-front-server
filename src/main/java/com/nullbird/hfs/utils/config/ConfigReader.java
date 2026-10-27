@@ -63,6 +63,7 @@ public class ConfigReader {
       LOGGER.warning("pathParameters is 'keep': rules on URLs can be bypassed with path parameters (/admin;x) " +
           "for backends that ignore them.");
     }
+    config.parseTrustedProxies();
     ensureAuthSecret(config);
     for (Rule rule : config.getRules()) {
       rule.init(config);

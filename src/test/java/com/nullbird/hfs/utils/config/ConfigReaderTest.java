@@ -74,6 +74,21 @@ public class ConfigReaderTest {
   }
 
   @Test
+  public void trustedProxiesTest(@TempDir Path dir) throws Exception {
+    ConfigReader.init(write(dir, "{\"trustedProxies\":[\"10.0.0.0/8\",\"::1\"],\"rules\":[" + LITERAL_RULE + "]}").toString());
+    var config = ConfigReader.getConfig();
+    assertTrue(config.isTrustedProxy("10.1.2.3"));
+    assertTrue(config.isTrustedProxy("::1"));
+    assertFalse(config.isTrustedProxy("127.0.0.1"));
+
+    ConfigReader.init(write(dir, "{\"rules\":[" + LITERAL_RULE + "]}").toString());
+    assertFalse(ConfigReader.getConfig().isTrustedProxy("127.0.0.1"), "No trusted proxy by default");
+
+    assertThrows(ConfigurationException.class,
+        () -> ConfigReader.init(write(dir, "{\"trustedProxies\":[\"my-lb.local\"],\"rules\":[" + LITERAL_RULE + "]}").toString()));
+  }
+
+  @Test
   public void noAuthNoRewriteTest(@TempDir Path dir) throws Exception {
     String json = "{\"rules\":[" + LITERAL_RULE + "]}";
     Path file = write(dir, json);

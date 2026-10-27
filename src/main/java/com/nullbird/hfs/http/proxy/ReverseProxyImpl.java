@@ -49,6 +49,8 @@ import java.util.stream.Collectors;
 
 public class ReverseProxyImpl  {
   private final static Logger LOGGER = Logger.getLogger(ReverseProxyImpl.class.getSimpleName());
+  private final static String X_FORWARDED_FOR = "X-Forwarded-For";
+  private final static String X_FORWARDED_PROTO = "X-Forwarded-Proto";
 
   /** Context attribute telling {@link #stripInjectedUserAgent} that the client sent its own User-Agent. */
   private final static String CLIENT_SENT_USER_AGENT = "hfs.clientSentUserAgent";
@@ -62,6 +64,7 @@ public class ReverseProxyImpl  {
   private transient AtomicInteger requestNumber;
 
   private transient HttpHost proxyHost;
+  private transient Config config;
   private transient CloseableHttpAsyncClient __proxyClient;
   /** Only created if retries are configured */
   private transient ScheduledExecutorService retryScheduler;
@@ -87,9 +90,10 @@ public class ReverseProxyImpl  {
         proxyRequestBuilder.setEntity(new ReverseProxyEntityProducer(null, request.getBodyStream(), Long.parseLong(contentLength.trim())));
       }
 
-      copyRequestHeaders(request, proxyRequestBuilder);
+      boolean fromTrustedProxy = config != null && config.isTrustedProxy(request.getRemoteAddr());
+      copyRequestHeaders(request, proxyRequestBuilder, fromTrustedProxy);
 
-      setXForwardedHeaders(request, proxyRequestBuilder);
+      setXForwardedHeaders(request, proxyRequestBuilder, fromTrustedProxy);
 
       // Execute the request
       doExecute(request, response, proxyRequestBuilder, requestNumber);
@@ -165,29 +169,31 @@ public class ReverseProxyImpl  {
     }
   }
 
-  private void setXForwardedHeaders(HttpRequest request, AsyncRequestBuilder proxyRequestBuilder) {
+  /**
+   * The values the client sent are only reused if it is a trusted proxy.
+   */
+  private void setXForwardedHeaders(HttpRequest request, AsyncRequestBuilder proxyRequestBuilder, boolean fromTrustedProxy) {
     if (conf.isDoForwardIP()) {
-      String forHeaderName = "X-Forwarded-For";
       String forHeader = request.getRemoteAddr();
-      String existingForHeader = request.getHeader(forHeaderName);
-      if (existingForHeader != null) {
-        forHeader = existingForHeader + ", " + forHeader;
+      List<String> existing = Collections.list(request.getHeaders(X_FORWARDED_FOR));
+      if (fromTrustedProxy && !existing.isEmpty()) {
+        forHeader = String.join(", ", existing) + ", " + forHeader;
       }
-      addHeaderImpl(forHeaderName, forHeader, proxyRequestBuilder);
-
+      addHeaderImpl(X_FORWARDED_FOR, forHeader, proxyRequestBuilder);
     }
-    String protoHeaderName = "X-Forwarded-Proto";
-    String protoHeader = request.getScheme();
-    addHeaderImpl(protoHeaderName, protoHeader, proxyRequestBuilder);
+    String protoHeader = fromTrustedProxy ? request.getHeader(X_FORWARDED_PROTO) : null;
+    if (protoHeader == null) protoHeader = request.getScheme();
+    addHeaderImpl(X_FORWARDED_PROTO, protoHeader, proxyRequestBuilder);
   }
 
-  private void copyRequestHeaders(HttpRequest request, AsyncRequestBuilder proxyRequestBuilder) {
+  private void copyRequestHeaders(HttpRequest request, AsyncRequestBuilder proxyRequestBuilder, boolean fromTrustedProxy) {
     Set<String> connectionTokens = getConnectionTokens(Collections.list(request.getHeaders(HttpHeaders.CONNECTION)));
     // Get an Enumeration of all of the header names sent by the client
     Enumeration<String> enumerationOfHeaderNames = request.getHeaderNames();
     while (enumerationOfHeaderNames.hasMoreElements()) {
       String headerName = enumerationOfHeaderNames.nextElement();
       if (connectionTokens.contains(headerName.toLowerCase(Locale.ROOT))) continue;
+      if (!fromTrustedProxy && forwardingHeaders.containsHeader(headerName)) continue;
       copyRequestHeader(request, proxyRequestBuilder, headerName);
     }
   }
@@ -227,9 +233,26 @@ public class ReverseProxyImpl  {
     String[] headers = new String[] {
             "Connection", "Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization",
             "TE", "Trailers", "Transfer-Encoding", "Upgrade", "Expect",
-            "X-Forwarded-For", "X-Forwarded-Proto" };
+            // Set by setXForwardedHeaders
+            X_FORWARDED_FOR, X_FORWARDED_PROTO };
     for (String header : headers) {
       hopByHopHeaders.addHeader(new BasicHeader(header, null));
+    }
+  }
+
+  /**
+   * Headers backends commonly trust for the identity of the client or the original URL. They are only passed on
+   * when they come from a trusted proxy.
+   */
+  protected static final HeaderGroup forwardingHeaders;
+  static {
+    forwardingHeaders = new HeaderGroup();
+    String[] headers = new String[] {
+            "Forwarded", "X-Real-IP", "X-Forwarded-Host", "X-Forwarded-Port", "X-Forwarded-Server",
+            "X-Forwarded-Prefix", "X-Forwarded-Ssl", "X-Client-IP", "True-Client-IP", "X-Cluster-Client-IP",
+            "CF-Connecting-IP" };
+    for (String header : headers) {
+      forwardingHeaders.addHeader(new BasicHeader(header, null));
     }
   }
 
@@ -259,6 +282,7 @@ public class ReverseProxyImpl  {
 
   public void initialize(Config config) throws ConfigurationException {
     if (conf.getTarget()==null) throw new ConfigurationException("ReverseProxy action must have a non null 'target' attribute");
+    this.config = config;
     try {
       URL targetURL = new URL(conf.getTarget());
       if (StringUtils.containsNonWhitespace(targetURL.getFile()) ||

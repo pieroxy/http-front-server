@@ -297,6 +297,30 @@ public class ReverseProxyE2ETest {
     assertEquals("test.local", headers.get("Host"));
   }
 
+  /**
+   * Forwarding headers a client could use to impersonate another client, or another URL.
+   */
+  static final List<String> SPOOFED_FORWARDING_HEADERS = List.of(
+      "X-Forwarded-For: 6.6.6.6", "X-Forwarded-Proto: https", "Forwarded: for=6.6.6.6;proto=https",
+      "X-Real-IP: 6.6.6.6", "X-Forwarded-Host: evil.example", "X-Forwarded-Port: 443",
+      "X-Forwarded-Server: evil.example", "X-Forwarded-Prefix: /evil", "X-Forwarded-Ssl: on",
+      "X-Client-IP: 6.6.6.6", "True-Client-IP: 6.6.6.6", "X-Cluster-Client-IP: 6.6.6.6",
+      "CF-Connecting-IP: 6.6.6.6");
+
+  @Test
+  public void clientForwardingHeadersAreNotTrustedTest() throws Exception {
+    var response = client.get("/", SPOOFED_FORWARDING_HEADERS);
+    assertEquals(200, response.status, response.toString());
+    var headers = backend.getSingleReceived().headers();
+    var names = lowerCase(headers.names());
+    names.remove("connection");
+    names.remove("keep-alive");
+    assertAll(
+        () -> assertEquals(Set.of("host", "x-forwarded-for", "x-forwarded-proto"), names, headers.toString()),
+        () -> assertEquals(List.of("127.0.0.1"), headers.getAll("X-Forwarded-For")),
+        () -> assertEquals(List.of("http"), headers.getAll("X-Forwarded-Proto")));
+  }
+
   @Test
   public void contentLengthBodyIsPreservedTest() throws Exception {
     byte[] body = randomBytes(1024 * 1024);

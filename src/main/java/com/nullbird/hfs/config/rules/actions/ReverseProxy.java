@@ -15,6 +15,10 @@ import java.util.logging.Logger;
  * This action will replay the http request to another backend host.
  * <br>A header <code>X-Forwarded-Proto</code> is added to the request, indicating the backend whether the
  * connection to HFS was secure (<code>https</code>) or not (<code>http</code>).
+ * <br>The forwarding headers sent by the client (<code>X-Forwarded-For</code>, <code>X-Forwarded-Proto</code>,
+ * <code>Forwarded</code>, <code>X-Real-IP</code>...) are removed, unless it is one of the
+ * {@link Config#trustedProxies}: its <code>X-Forwarded-For</code> is then completed, and its
+ * <code>X-Forwarded-Proto</code> and other forwarding headers are passed on.
  */
 public class ReverseProxy implements RuleAction {
   private final static Logger LOGGER = Logger.getLogger(ReverseProxy.class.getName());
@@ -36,8 +40,9 @@ public class ReverseProxy implements RuleAction {
   protected String target;
 
   /**
-   * Determines if a <code>X-Forwarded-For</code> header is added (or completed) with the IP address
-   * of the original request.
+   * Determines if a <code>X-Forwarded-For</code> header is added with the IP address of the original request
+   * (or completed, if the request comes from one of the {@link Config#trustedProxies}). If <b>false</b>, no
+   * <code>X-Forwarded-For</code> is sent at all.
    * <br>Default value is <b>true</b>
    */
   protected boolean doForwardIP = true;

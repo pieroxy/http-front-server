@@ -1,8 +1,11 @@
 package com.nullbird.hfs.config;
 
 import com.nullbird.hfs.config.rules.Rule;
+import com.nullbird.hfs.utils.IpRange;
+import com.nullbird.hfs.utils.errors.ConfigurationException;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -68,6 +71,16 @@ public class Config {
    */
   protected PathParametersHandling pathParameters = PathParametersHandling.REJECT;
 
+  /**
+   * The IP addresses or CIDR ranges (<code>10.0.0.0/8</code>, <code>2001:db8::/32</code>) of the proxies HFS sits
+   * behind, if any (a load balancer, a CDN...). Only for requests coming from them are the forwarding headers sent by
+   * the client (<code>X-Forwarded-For</code>, <code>X-Forwarded-Proto</code>, <code>Forwarded</code>,
+   * <code>X-Real-IP</code>...) passed on to the backends: they are removed for any other client.
+   * <br>Defaults to none.
+   */
+  protected List<String> trustedProxies;
+  private transient List<IpRange> trustedProxyRanges = List.of();
+
   public List<Rule> getRules() {
     return rules;
   }
@@ -117,6 +130,41 @@ public class Config {
 
   public void setPathParameters(PathParametersHandling pathParameters) {
     this.pathParameters = pathParameters;
+  }
+
+  public List<String> getTrustedProxies() {
+    return trustedProxies;
+  }
+
+  /**
+   * {@link #parseTrustedProxies()} must be called afterwards.
+   */
+  public void setTrustedProxies(List<String> trustedProxies) {
+    this.trustedProxies = trustedProxies;
+  }
+
+  /**
+   * Validates {@link #trustedProxies}, which {@link #isTrustedProxy} relies on.
+   */
+  public void parseTrustedProxies() throws ConfigurationException {
+    var ranges = new ArrayList<IpRange>();
+    if (trustedProxies != null) {
+      for (String value : trustedProxies) {
+        try {
+          ranges.add(IpRange.parse(value));
+        } catch (IllegalArgumentException e) {
+          throw new ConfigurationException("trustedProxies: " + e.getMessage());
+        }
+      }
+    }
+    trustedProxyRanges = List.copyOf(ranges);
+  }
+
+  public boolean isTrustedProxy(String remoteAddr) {
+    for (IpRange range : trustedProxyRanges) {
+      if (range.contains(remoteAddr)) return true;
+    }
+    return false;
   }
 
   public TomcatConfig getTomcatConfig() {
