@@ -1,5 +1,6 @@
 package com.nullbird.hfs.http;
 
+import com.nullbird.hfs.utils.errors.BodyTooLargeException;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -9,12 +10,24 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ServletHttpRequestTest {
   private Map<String, String> decode(String body) throws IOException {
     var map = new HashMap<String, String>();
-    ServletHttpRequest.decodeInputStream(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)), map);
+    ServletHttpRequest.decodeInputStream(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)), map, 1024);
     return map;
+  }
+
+  @Test
+  public void sizeLimitTest() throws IOException {
+    var map = new HashMap<String, String>();
+    ServletHttpRequest.decodeInputStream(new ByteArrayInputStream("a=1234".getBytes(StandardCharsets.UTF_8)), map, 6);
+    assertEquals(Map.of("a", "1234"), map);
+
+    var stream = new ByteArrayInputStream(new byte[1_000_000]);
+    assertThrows(BodyTooLargeException.class, () -> ServletHttpRequest.decodeInputStream(stream, new HashMap<>(), 6));
+    assertEquals(1_000_000 - 7, stream.available(), "At most maxBytes + 1 bytes must be read");
   }
 
   @Test

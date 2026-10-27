@@ -6,10 +6,12 @@ import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.StringUtils;
+import com.nullbird.hfs.utils.errors.BodyTooLargeException;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpHeaders;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -40,6 +42,8 @@ public class BasicAuthenticate implements RuleAction {
   private static final Logger LOGGER = Logger.getLogger(BasicAuthenticate.class.getName());
   private static final Level DEBUG_LEVEL = Level.FINE;
   private static final String HMAC_ALGORITHM = "HmacSHA256";
+  /** The login form only carries a login, a password and the target URL */
+  static final int MAX_LOGIN_BODY_BYTES = 16 * 1024;
   public final String AUTH_LOGIN=this.getClass().getName() + ".login";
   public final String AUTH_PASSWORD=this.getClass().getName() + ".password";
   public final String AUTH_REDIRECT=this.getClass().getName() + ".target";
@@ -83,8 +87,13 @@ public class BasicAuthenticate implements RuleAction {
       }
       return;
     }
+    if (!isLoginAttempt(request)) {
+      if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Request needs authentication - " + request.getUrl());
+      showLoginPrompt(request, response);
+      return;
+    }
     try {
-      Map<String, String> postData = request.decodeSimpleXWWWFormUrlEncodedPostData();
+      Map<String, String> postData = request.decodeSimpleXWWWFormUrlEncodedPostData(MAX_LOGIN_BODY_BYTES);
       String login = postData.get(AUTH_LOGIN);
       String password = postData.get(AUTH_PASSWORD);
       String target = postData.get(AUTH_REDIRECT);
@@ -96,7 +105,7 @@ public class BasicAuthenticate implements RuleAction {
         LOGGER.finer("method " + request.getMethod());
       }
 
-      if (login != null && password != null && target != null && request.getMethod().equals("POST")) {
+      if (login != null && password != null && target != null) {
         if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authenticating the request - " + request.getUrl());
         if (Objects.equals(credentials.get(login), password)) {
           if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authentication successful - " + request.getUrl());
@@ -111,11 +120,26 @@ public class BasicAuthenticate implements RuleAction {
         if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Request needs authentication - " + request.getUrl());
         showLoginPrompt(request, response);
       }
+    } catch (BodyTooLargeException e) {
+      if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Login body too large - " + request.getUrl() + ": " + e.getMessage());
+      showLoginPrompt(request, response);
     } catch (Exception e) {
       // Whatever happens, the request must not go through unauthenticated.
       if (LOGGER.isLoggable(Level.INFO)) LOGGER.log(Level.INFO, "Request failed decoding and thus needs authentication - " + request.getUrl(), e);
       showLoginPrompt(request, response);
     }
+  }
+
+  /**
+   * Only a POST of a form can be a login attempt: the body of any other request is never read.
+   */
+  private static boolean isLoginAttempt(HttpRequest request) {
+    if (!"POST".equals(request.getMethod())) return false;
+    String contentType = request.getHeader(HttpHeaders.CONTENT_TYPE);
+    if (contentType == null) return false;
+    int semicolon = contentType.indexOf(';');
+    String mimeType = (semicolon < 0 ? contentType : contentType.substring(0, semicolon)).trim();
+    return mimeType.equalsIgnoreCase("application/x-www-form-urlencoded");
   }
 
   private void failLogin(HttpRequest request, String target, HttpResponse response) {

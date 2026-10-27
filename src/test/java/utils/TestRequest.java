@@ -180,7 +180,6 @@ public class TestRequest implements HttpRequest {
     this.scheme = scheme;
   }
 
-  @Override
   public byte[] getBodyAsByteArray() {
     return bodyAsByteArray;
   }
@@ -201,7 +200,7 @@ public class TestRequest implements HttpRequest {
   }
 
   @Override
-  public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData() throws IOException {
+  public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData(int maxBytes) throws IOException {
     return postData;
   }
 

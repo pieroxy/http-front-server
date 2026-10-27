@@ -1,15 +1,14 @@
 package com.nullbird.hfs.http;
 
 import com.nullbird.hfs.bootstrap.ClientAborterValve;
-import com.nullbird.hfs.utils.StreamUtils;
 import com.nullbird.hfs.utils.StringUtils;
+import com.nullbird.hfs.utils.errors.BodyTooLargeException;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.HttpHeaders;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLDecoder;
@@ -46,16 +45,6 @@ public class ServletHttpRequest implements HttpRequest {
   public String getMethod() {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getMethod() :: " + request.getMethod());
     return request.getMethod();
-  }
-
-  @Override
-  public byte[] getBodyAsByteArray() throws IOException {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getBodyAsByteArray() :: not computing");
-    // TODO This needs to go away
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    InputStream inputStream = request.getInputStream();
-    StreamUtils.copyStream(inputStream, outputStream);
-    return outputStream.toByteArray();
   }
 
   /**
@@ -162,19 +151,27 @@ public class ServletHttpRequest implements HttpRequest {
   }
 
   @Override
-  public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData() throws IOException {
+  public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData(int maxBytes) throws IOException {
     if (postFormData == null) {
-       postFormData = new HashMap<>();
-       decodeInputStream(getBodyStream(), postFormData);
+      if (request.getContentLengthLong() > maxBytes) {
+        throw new BodyTooLargeException("Content-Length " + request.getContentLengthLong() + " is over " + maxBytes);
+      }
+      var data = new HashMap<String, String>();
+      decodeInputStream(getBodyStream(), data, maxBytes);
+      postFormData = data;
     }
     return postFormData;
   }
 
   /**
    * Malformed pairs (no <code>=</code>, invalid percent-encoding) are ignored.
+   * @throws BodyTooLargeException if the stream holds more than <code>maxBytes</code> bytes. At most
+   * <code>maxBytes + 1</code> bytes are read.
    */
-  static void decodeInputStream(InputStream stream, Map<String, String> map) throws IOException {
-    String body = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+  static void decodeInputStream(InputStream stream, Map<String, String> map, int maxBytes) throws IOException {
+    byte[] bytes = stream.readNBytes(maxBytes + 1);
+    if (bytes.length > maxBytes) throw new BodyTooLargeException("Body is over " + maxBytes + " bytes");
+    String body = new String(bytes, StandardCharsets.UTF_8);
     for (String pair : body.split("&")) {
       int eq = pair.indexOf('=');
       if (eq <= 0) continue;

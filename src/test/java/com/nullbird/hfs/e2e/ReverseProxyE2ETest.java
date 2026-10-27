@@ -44,6 +44,8 @@ public class ReverseProxyE2ETest {
   private static final String HOST_UNREACHABLE = "unreachable.local";
   private static final int TIMEOUT_MS = 1000;
   private static final String ADMIN_BLOCKED = "admin is blocked";
+  private static final String HOST_AUTH = "auth.local";
+  private static final String AUTH_FIELD = "com.nullbird.hfs.config.rules.actions.BasicAuthenticate.";
 
   private RawBackend backend;
   private HfsTestServer hfs;
@@ -59,10 +61,15 @@ public class ReverseProxyE2ETest {
     String target = "http://localhost:" + backend.getPort();
     hfs = new HfsTestServer("""
         {
+          "hfsAuthSecret": "e2e-secret",
           "rules": [
             {
               "matcher": {"type": "URLRegexpMatcher", "regexp": "^http://[^/]+/admin(/|$)"},
               "action": {"type": "RespondLiteral", "contentType": "text/plain", "content": "%s"}
+            },
+            {
+              "matcher": {"type": "HostIs", "host": "%s"},
+              "action": {"type": "BasicAuthenticate", "credentials": {"user": "password"}, "secure": false}
             },
             {
               "matcher": {"type": "HostIs", "host": "%s"},
@@ -78,7 +85,7 @@ public class ReverseProxyE2ETest {
             }
           ]
         }
-        """.formatted(ADMIN_BLOCKED, HOST_TIMEOUT, target, TIMEOUT_MS, HOST_UNREACHABLE, closedPort, target));
+        """.formatted(ADMIN_BLOCKED, HOST_AUTH, HOST_TIMEOUT, target, TIMEOUT_MS, HOST_UNREACHABLE, closedPort, target));
     client = new RawClient(hfs.getPort());
   }
 
@@ -457,6 +464,60 @@ public class ReverseProxyE2ETest {
     } finally {
       backendMayFinish.countDown();
     }
+  }
+
+  // =================================================================================================================
+  // BasicAuthenticate
+
+  private static final List<String> FORM = List.of("Content-Type: application/x-www-form-urlencoded");
+
+  private static byte[] loginBody(String password, int padding) {
+    return (AUTH_FIELD + "login=user&" + AUTH_FIELD + "password=" + password + "&" + AUTH_FIELD + "target=/done&pad="
+        + "x".repeat(padding)).getBytes(StandardCharsets.UTF_8);
+  }
+
+  @Test
+  public void loginTest() throws Exception {
+    byte[] body = loginBody("password", 0);
+    var headers = new ArrayList<>(FORM);
+    headers.add("Content-Length: " + body.length);
+    var response = client.send("POST", "/", HOST_AUTH, headers, body);
+    assertEquals(302, response.status, response.toString());
+    assertEquals("/done", response.headers.get("Location"));
+    assertTrue(response.headers.get("Set-Cookie").startsWith("com.nullbird.hfs.config.rules.actions.BasicAuthenticate="));
+    assertEquals(0, backend.getReceived().size());
+  }
+
+  @Test
+  public void announcedHugeLoginBodyIsNotReadTest() throws Exception {
+    // The body is never sent: HFS must answer without waiting for it
+    var headers = new ArrayList<>(FORM);
+    headers.add("Content-Length: 1000000000");
+    var response = client.send("POST", "/", HOST_AUTH, headers, null);
+    assertFalse(response.timedOut, "HFS must not wait for the body");
+    assertEquals(401, response.status, response.toString());
+    assertEquals(0, backend.getReceived().size());
+  }
+
+  @Test
+  public void tooLargeChunkedLoginBodyIsRejectedTest() throws Exception {
+    // Valid credentials, but in a body over the limit
+    var headers = new ArrayList<>(FORM);
+    headers.add("Transfer-Encoding: chunked");
+    var response = client.send("POST", "/", HOST_AUTH, headers, RawHttp.chunkedBytes(loginBody("password", 100_000), 8192));
+    assertEquals(401, response.status, response.toString());
+    assertNull(response.headers.get("Set-Cookie"));
+    assertEquals(0, backend.getReceived().size());
+  }
+
+  @Test
+  public void nonFormRequestIsNotAuthenticatedTest() throws Exception {
+    byte[] body = loginBody("password", 0);
+    var response = client.send("POST", "/", HOST_AUTH,
+        List.of("Content-Type: application/json", "Content-Length: " + body.length), body);
+    assertEquals(401, response.status, response.toString());
+    assertNull(response.headers.get("Set-Cookie"));
+    assertEquals(0, backend.getReceived().size());
   }
 
   // =================================================================================================================

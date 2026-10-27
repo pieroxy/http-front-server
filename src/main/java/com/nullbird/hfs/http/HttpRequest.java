@@ -20,8 +20,6 @@ public interface HttpRequest {
    */
   List<String> getCookieValues(String name);
 
-  byte[] getBodyAsByteArray() throws IOException;
-
   Enumeration<String> getHeaderNames();
   Enumeration<String> getHeaders(String name);
 
@@ -37,5 +35,12 @@ public interface HttpRequest {
 
   HttpResponse getResponse();
 
-  Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData() throws IOException;
+  /**
+   * Reads the body and decodes it as <code>application/x-www-form-urlencoded</code>, without checking the method
+   * or the <code>Content-Type</code>.
+   * @param maxBytes The body is not read beyond this size.
+   * @throws com.nullbird.hfs.utils.errors.BodyTooLargeException if the body, or its announced
+   * <code>Content-Length</code>, is bigger than <code>maxBytes</code>.
+   */
+  Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData(int maxBytes) throws IOException;
 }

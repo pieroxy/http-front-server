@@ -1,6 +1,7 @@
 package com.nullbird.hfs.config.rules.actions;
 
 import com.nullbird.hfs.config.Config;
+import com.nullbird.hfs.utils.errors.BodyTooLargeException;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.HttpHeaders;
@@ -10,6 +11,7 @@ import utils.TestResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -161,12 +163,13 @@ public class BasicAuthenticateTest {
     var action = buildAction();
     var request = new TestRequest() {
       @Override
-      public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData() throws IOException {
+      public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData(int maxBytes) throws IOException {
         throw new RuntimeException("Simulated decoding failure");
       }
     };
     request.setUrl("http://anything/");
     request.setMethod("POST");
+    request.setHeaders(new HashMap<>(Map.of(HttpHeaders.CONTENT_TYPE, List.of("application/x-www-form-urlencoded"))));
     request.setCookieValues(new HashMap<>());
     var response = new TestResponse();
     action.run(request, response, null);
@@ -178,6 +181,7 @@ public class BasicAuthenticateTest {
     var action = buildAction("secret", Map.of("user", "password"), null);
     var request = TestRequest.fromUrl("http://anything/");
     request.setMethod("POST");
+    request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of("application/x-www-form-urlencoded"));
     request.getPostData().put(action.AUTH_LOGIN, "user");
     request.getPostData().put(action.AUTH_PASSWORD, "password");
     request.getPostData().put(action.AUTH_REDIRECT, "http://success");
@@ -198,6 +202,7 @@ public class BasicAuthenticateTest {
     var action = buildAction("secret", Map.of("user", "password"), null);
     var request = TestRequest.fromUrl("http://anything/");
     request.setMethod("POST");
+    request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of("application/x-www-form-urlencoded"));
     request.getPostData().put(action.AUTH_LOGIN, "user");
     request.getPostData().put(action.AUTH_PASSWORD, "password2");
     request.getPostData().put(action.AUTH_REDIRECT, "http://success");
@@ -209,6 +214,75 @@ public class BasicAuthenticateTest {
     assertTrue(body.length() > 0);
     assertTrue(body.startsWith("<html>"));
     assertTrue(body.contains("<input "));
+  }
+
+  /**
+   * A request whose body must never be read, and which holds valid credentials if it were.
+   */
+  private TestRequest untouchableBody(BasicAuthenticate action, String method, String contentType) {
+    var request = new TestRequest() {
+      @Override
+      public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData(int maxBytes) {
+        throw new AssertionError("The body must not be read");
+      }
+    };
+    request.setUrl("http://anything/");
+    request.setMethod(method);
+    request.setCookieValues(new HashMap<>());
+    request.setHeaders(new HashMap<>());
+    if (contentType != null) request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of(contentType));
+    return request;
+  }
+
+  @Test
+  public void onlyFormPostsAreReadTest() {
+    var action = buildAction("secret", Map.of("user", "password"), null);
+    for (var request : List.of(
+        untouchableBody(action, "GET", "application/x-www-form-urlencoded"),
+        untouchableBody(action, "PUT", "application/x-www-form-urlencoded"),
+        untouchableBody(action, "POST", null),
+        untouchableBody(action, "POST", "application/json"),
+        untouchableBody(action, "POST", "multipart/form-data; boundary=x"))) {
+      var response = new TestResponse();
+      action.run(request, response, null);
+      assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.getStatus(), request.getMethod() + " " + request.getHeader(HttpHeaders.CONTENT_TYPE));
+      assertNull(response.getCookie(action.cookieName));
+    }
+  }
+
+  @Test
+  public void formContentTypeWithParametersIsAcceptedTest() {
+    var action = buildAction("secret", Map.of("user", "password"), null);
+    var request = TestRequest.fromUrl("http://anything/");
+    request.setMethod("POST");
+    request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of(" Application/X-WWW-Form-Urlencoded ; charset=UTF-8"));
+    request.getPostData().put(action.AUTH_LOGIN, "user");
+    request.getPostData().put(action.AUTH_PASSWORD, "password");
+    request.getPostData().put(action.AUTH_REDIRECT, "http://success");
+    var response = new TestResponse();
+    action.run(request, response, null);
+    assertEquals(HttpServletResponse.SC_FOUND, response.getStatus());
+  }
+
+  @Test
+  public void tooLargeBodyShowsLoginPromptTest() {
+    var action = buildAction();
+    var limits = new ArrayList<Integer>();
+    var request = new TestRequest() {
+      @Override
+      public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData(int maxBytes) throws IOException {
+        limits.add(maxBytes);
+        throw new BodyTooLargeException("Simulated");
+      }
+    };
+    request.setUrl("http://anything/");
+    request.setMethod("POST");
+    request.setCookieValues(new HashMap<>());
+    request.setHeaders(new HashMap<>(Map.of(HttpHeaders.CONTENT_TYPE, List.of("application/x-www-form-urlencoded"))));
+    var response = new TestResponse();
+    action.run(request, response, null);
+    assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.getStatus());
+    assertEquals(List.of(BasicAuthenticate.MAX_LOGIN_BODY_BYTES), limits);
   }
 
   @Test
