@@ -21,19 +21,22 @@ public class RateLimiterTest {
   @Test
   public void checkRefusesOnceTheKeyHasMaxHitsCaseInsensitivelyTest() {
     var limiter = limiter(60_000, 2, 100);
-    limiter.hit("admin");
-    limiter.check("admin");
+    assertTrue(limiter.hit("admin").allowed());
+    assertTrue(limiter.check("admin").allowed());
     advance(1000);
-    limiter.hit(" Admin ");
-    var e = assertThrows(RateLimiter.RateExceededException.class, () -> limiter.check("ADMIN"));
-    assertEquals(59_000, e.getRetryAfterMillis(), "Retry once the oldest hit expires");
-    limiter.check("other");
+    var afterHit = limiter.hit(" Admin ");
+    assertFalse(afterHit.allowed(), "hit returns the status after the hit");
+    var status = limiter.check("ADMIN");
+    assertFalse(status.allowed());
+    assertEquals(59_000, status.retryAfterMillis(), "Retry once the oldest hit expires");
+    assertEquals(status, afterHit);
+    assertTrue(limiter.check("other").allowed());
   }
 
   @Test
   public void checkAddsNoHitTest() {
     var limiter = limiter(60_000, 1, 100);
-    for (int i = 0; i < 10; i++) limiter.check("admin");
+    for (int i = 0; i < 10; i++) assertTrue(limiter.check("admin").allowed());
     assertEquals(0, limiter.getNbTimeStamps());
   }
 
@@ -41,18 +44,18 @@ public class RateLimiterTest {
   public void resetClearsTheKeyTest() {
     var limiter = limiter(60_000, 1, 100);
     limiter.hit("admin");
-    assertThrows(RateLimiter.RateExceededException.class, () -> limiter.check("admin"));
+    assertFalse(limiter.check("admin").allowed());
     limiter.reset("ADMIN");
-    limiter.check("admin");
+    assertTrue(limiter.check("admin").allowed());
   }
 
   @Test
   public void allowsAgainOnceTheWindowHasPassedTest() {
     var limiter = limiter(50, 1, 100);
     limiter.hit("admin");
-    assertThrows(RateLimiter.RateExceededException.class, () -> limiter.check("admin"));
+    assertFalse(limiter.check("admin").allowed());
     advance(80);
-    limiter.check("admin");
+    assertTrue(limiter.check("admin").allowed());
   }
 
   @Test
@@ -71,18 +74,21 @@ public class RateLimiterTest {
   public void newKeysAreRefusedWhenFullTest() {
     var limiter = limiter(60_000, 5, 2);
     limiter.hit("a");
+    advance(1000);
     limiter.hit("b");
-    assertThrows(RateLimiter.RateExceededException.class, () -> limiter.check("c"));
-    limiter.hit("c");
+    var status = limiter.check("c");
+    assertFalse(status.allowed());
+    assertEquals(59_000, status.retryAfterMillis(), "Until the next sweep");
+    assertFalse(limiter.hit("c").allowed());
     assertEquals(2, limiter.getNbKeys(), "A new key is ignored when full");
     // Known keys are still served
-    limiter.check("a");
-    limiter.hit("a");
+    assertTrue(limiter.check("a").allowed());
+    assertTrue(limiter.hit("a").allowed());
     assertEquals(3, limiter.getNbTimeStamps());
 
     advance(61_000);
-    limiter.check("c");
-    limiter.hit("c");
+    assertTrue(limiter.check("c").allowed());
+    assertTrue(limiter.hit("c").allowed());
     assertEquals(1, limiter.getNbKeys());
   }
 }

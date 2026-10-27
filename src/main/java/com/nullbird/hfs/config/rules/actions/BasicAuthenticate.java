@@ -103,11 +103,10 @@ public class BasicAuthenticate implements RuleAction {
       return;
     }
     String client = getRateLimiterKey(request.getClientAddr());
-    try {
-      failedLogins.check(client);
-    } catch (RateLimiter.RateExceededException e) {
+    var status = failedLogins.check(client);
+    if (!status.allowed()) {
       if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Too many failed logins from " + client + " - " + request.getUrl());
-      respondTooManyFailedLogins(response, e.getRetryAfterMillis());
+      respondTooManyFailedLogins(response, status.retryAfterMillis());
       return;
     }
     try {
@@ -133,12 +132,10 @@ public class BasicAuthenticate implements RuleAction {
           response.sendRedirect(HttpServletResponse.SC_FOUND, target);
         } else {
           if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Authentication failed for " + client + " - " + request.getUrl());
-          failedLogins.hit(client);
-          try {
-            failedLogins.check(client);
-          } catch (RateLimiter.RateExceededException e) {
+          var afterFailure = failedLogins.hit(client);
+          if (!afterFailure.allowed()) {
             LOGGER.warning("Too many failed logins from " + client + ", refusing its login attempts for "
-                + TimeUnit.MILLISECONDS.toSeconds(e.getRetryAfterMillis()) + "s - " + request.getUrl());
+                + TimeUnit.MILLISECONDS.toSeconds(afterFailure.retryAfterMillis()) + "s - " + request.getUrl());
           }
           failLogin(request, target, response);
         }

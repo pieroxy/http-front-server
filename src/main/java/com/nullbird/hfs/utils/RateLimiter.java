@@ -17,6 +17,17 @@ import java.util.function.LongSupplier;
  * number of keys.
  */
 public class RateLimiter {
+  /**
+   * The state of a key: allowed, or refused for <code>retryAfterMillis</code>.
+   */
+  public record Status(boolean allowed, long retryAfterMillis) {
+    static final Status ALLOWED = new Status(true, 0);
+
+    static Status refusedFor(long retryAfterNanos) {
+      return new Status(false, Math.max(0, TimeUnit.NANOSECONDS.toMillis(retryAfterNanos)));
+    }
+  }
+
   private final long windowNanos;
   private final int maxHits;
   private final int maxKeys;
@@ -26,8 +37,8 @@ public class RateLimiter {
   private long lastSweep;
 
   /**
-   * @param maxKeys When this many keys have hits in the window, new keys are refused (by {@link #check}) and
-   * ignored (by {@link #hit}) until the window frees some.
+   * @param maxKeys When this many keys have hits in the window, new keys are refused and their hits ignored, until
+   * the window frees some.
    */
   public RateLimiter(long milliseconds, int maxHits, int maxKeys) {
     this(milliseconds, maxHits, maxKeys, System::nanoTime);
@@ -43,29 +54,39 @@ public class RateLimiter {
   }
 
   /**
-   * Keys are compared trimmed and case-insensitively.
+   * Keys are compared trimmed and case-insensitively. Adds no hit.
    *
-   * @throws RateExceededException if {@code key} already has {@code maxHits} hits in the window, or if it has none
-   * and {@code maxKeys} keys do. Adds no hit.
+   * @return Refused if {@code key} already has {@code maxHits} hits in the window, or if it has none and
+   * {@code maxKeys} keys do.
    */
-  public synchronized void check(String key) throws RateExceededException {
+  public synchronized Status check(String key) {
     long now = nanoClock.getAsLong();
-    Deque<Long> hits = hitsOf(normalize(key), now);
-    if (hits == null) {
-      if (data.size() >= maxKeys) throw new RateExceededException(TimeUnit.NANOSECONDS.toMillis(lastSweep + windowNanos - now));
-    } else if (hits.size() >= maxHits) {
-      throw new RateExceededException(TimeUnit.NANOSECONDS.toMillis(hits.peekFirst() + windowNanos - now));
-    }
+    return statusOf(hitsOf(normalize(key), now), now);
   }
 
-  public synchronized void hit(String key) {
+  /**
+   * Adds a hit to {@code key}, unless it is new and {@code maxKeys} keys already have hits in the window.
+   *
+   * @return The status of {@code key} after the hit, see {@link #check}.
+   */
+  public synchronized Status hit(String key) {
     long now = nanoClock.getAsLong();
     String normalized = normalize(key);
-    if (hitsOf(normalized, now) == null) {
-      if (data.size() >= maxKeys) return;
-      data.put(normalized, new ArrayDeque<>());
+    Deque<Long> hits = hitsOf(normalized, now);
+    if (hits == null) {
+      if (data.size() >= maxKeys) return statusOf(null, now);
+      hits = new ArrayDeque<>();
+      data.put(normalized, hits);
     }
-    data.get(normalized).addLast(now);
+    hits.addLast(now);
+    return statusOf(hits, now);
+  }
+
+  private Status statusOf(Deque<Long> hits, long now) {
+    if (hits == null) {
+      return data.size() >= maxKeys ? Status.refusedFor(lastSweep + windowNanos - now) : Status.ALLOWED;
+    }
+    return hits.size() >= maxHits ? Status.refusedFor(hits.peekFirst() + windowNanos - now) : Status.ALLOWED;
   }
 
   public synchronized void reset(String key) {
@@ -113,19 +134,5 @@ public class RateLimiter {
   private static void trim(Deque<Long> hits, long expired) {
     // Differences, not comparisons: nanoTime values can overflow
     while (!hits.isEmpty() && hits.peekFirst() - expired < 0) hits.removeFirst();
-  }
-
-  public static class RateExceededException extends RuntimeException {
-    private final long retryAfterMillis;
-
-    public RateExceededException(long retryAfterMillis) {
-      super("Rate exceeded, retry in " + retryAfterMillis + " ms");
-      this.retryAfterMillis = Math.max(0, retryAfterMillis);
-    }
-
-    /** Until the oldest hit in the window expires, freeing one slot. */
-    public long getRetryAfterMillis() {
-      return retryAfterMillis;
-    }
   }
 }
