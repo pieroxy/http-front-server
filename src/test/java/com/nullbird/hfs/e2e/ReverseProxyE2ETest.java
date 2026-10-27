@@ -45,6 +45,9 @@ public class ReverseProxyE2ETest {
   private static final int TIMEOUT_MS = 1000;
   private static final String ADMIN_BLOCKED = "admin is blocked";
   private static final String HOST_AUTH = "auth.local";
+  /** Its own BasicAuthenticate, so that locking the test client out does not affect the other tests */
+  private static final String HOST_LOCKOUT = "lockout.local";
+  static final String IP_MATCHED = "matched 6.6.6.6";
   private static final String AUTH_FIELD = "com.nullbird.hfs.config.rules.actions.BasicAuthenticate.";
 
   private RawBackend backend;
@@ -68,6 +71,14 @@ public class ReverseProxyE2ETest {
               "action": {"type": "RespondLiteral", "contentType": "text/plain", "content": "%s"}
             },
             {
+              "matcher": {"type": "IPAddressIs", "ipAddress": "6.6.6.6"},
+              "action": {"type": "RespondLiteral", "contentType": "text/plain", "content": "%s"}
+            },
+            {
+              "matcher": {"type": "HostIs", "host": "%s"},
+              "action": {"type": "BasicAuthenticate", "credentials": {"user": "password"}, "secure": false}
+            },
+            {
               "matcher": {"type": "HostIs", "host": "%s"},
               "action": {"type": "BasicAuthenticate", "credentials": {"user": "password"}, "secure": false}
             },
@@ -85,7 +96,7 @@ public class ReverseProxyE2ETest {
             }
           ]
         }
-        """.formatted(ADMIN_BLOCKED, HOST_AUTH, HOST_TIMEOUT, target, TIMEOUT_MS, HOST_UNREACHABLE, closedPort, target));
+        """.formatted(ADMIN_BLOCKED, IP_MATCHED, HOST_AUTH, HOST_LOCKOUT, HOST_TIMEOUT, target, TIMEOUT_MS, HOST_UNREACHABLE, closedPort, target));
     client = new RawClient(hfs.getPort());
   }
 
@@ -318,7 +329,8 @@ public class ReverseProxyE2ETest {
     assertAll(
         () -> assertEquals(Set.of("host", "x-forwarded-for", "x-forwarded-proto"), names, headers.toString()),
         () -> assertEquals(List.of("127.0.0.1"), headers.getAll("X-Forwarded-For")),
-        () -> assertEquals(List.of("http"), headers.getAll("X-Forwarded-Proto")));
+        () -> assertEquals(List.of("http"), headers.getAll("X-Forwarded-Proto")),
+        () -> assertNotEquals(IP_MATCHED, response.bodyAsString(), "IPAddressIs must ignore X-Forwarded-For"));
   }
 
   @Test
@@ -532,6 +544,28 @@ public class ReverseProxyE2ETest {
     assertEquals(401, response.status, response.toString());
     assertNull(response.headers.get("Set-Cookie"));
     assertEquals(0, backend.getReceived().size());
+  }
+
+  @Test
+  public void failedLoginsLockTheClientOutTest() throws Exception {
+    var headers = new ArrayList<>(FORM);
+    byte[] wrong = loginBody("wrong", 0);
+    headers.add("Content-Length: " + wrong.length);
+    for (int i = 0; i < 5; i++) {
+      var response = client.send("POST", "/", HOST_LOCKOUT, headers, wrong);
+      assertEquals(401, response.status, "Attempt " + i + ": " + response);
+    }
+    byte[] right = loginBody("password", 0);
+    var response = client.send("POST", "/", HOST_LOCKOUT,
+        List.of(FORM.get(0), "Content-Length: " + right.length), right);
+    assertEquals(429, response.status, response.toString());
+    assertNull(response.headers.get("Set-Cookie"));
+    long retryAfter = Long.parseLong(response.headers.get("Retry-After"));
+    assertTrue(retryAfter > 250 && retryAfter <= 300, "Retry-After: " + retryAfter);
+
+    // Each BasicAuthenticate rule has its own count
+    var other = client.send("POST", "/", HOST_AUTH, List.of(FORM.get(0), "Content-Length: " + right.length), right);
+    assertEquals(302, other.status, other.toString());
   }
 
   @Test

@@ -285,6 +285,82 @@ public class BasicAuthenticateTest {
     assertEquals(List.of(BasicAuthenticate.MAX_LOGIN_BODY_BYTES), limits);
   }
 
+  private TestResponse login(BasicAuthenticate action, String clientAddr, String password) {
+    var request = TestRequest.fromUrl("http://anything/");
+    request.setRemoteAddr(clientAddr);
+    request.setMethod("POST");
+    request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of("application/x-www-form-urlencoded"));
+    request.getPostData().put(action.AUTH_LOGIN, "user");
+    request.getPostData().put(action.AUTH_PASSWORD, password);
+    request.getPostData().put(action.AUTH_REDIRECT, "http://success");
+    var response = new TestResponse();
+    action.run(request, response, null);
+    return response;
+  }
+
+  @Test
+  public void failedLoginsLockTheClientOutTest() {
+    var action = buildAction("secret", Map.of("user", "password"), null);
+    for (int i = 0; i < BasicAuthenticate.MAX_FAILED_LOGINS; i++) {
+      assertEquals(HttpServletResponse.SC_UNAUTHORIZED, login(action, "1.2.3.4", "wrong").getStatus(), "Attempt " + i);
+    }
+    // Even the right password is refused now, without being checked
+    var locked = login(action, "1.2.3.4", "password");
+    assertEquals(429, locked.getStatus());
+    assertNull(locked.getCookie(action.cookieName));
+    long retryAfter = Long.parseLong(locked.getHeaders().get(HttpHeaders.RETRY_AFTER));
+    assertTrue(retryAfter > 0 && retryAfter <= BasicAuthenticate.FAILED_LOGIN_WINDOW_MS / 1000, "Retry-After: " + retryAfter);
+
+    // Other clients are not affected
+    assertEquals(HttpServletResponse.SC_FOUND, login(action, "1.2.3.5", "password").getStatus());
+  }
+
+  @Test
+  public void successfulLoginResetsTheCountTest() {
+    var action = buildAction("secret", Map.of("user", "password"), null);
+    for (int i = 0; i < BasicAuthenticate.MAX_FAILED_LOGINS - 1; i++) login(action, "1.2.3.4", "wrong");
+    assertEquals(HttpServletResponse.SC_FOUND, login(action, "1.2.3.4", "password").getStatus());
+    for (int i = 0; i < BasicAuthenticate.MAX_FAILED_LOGINS - 1; i++) {
+      assertEquals(HttpServletResponse.SC_UNAUTHORIZED, login(action, "1.2.3.4", "wrong").getStatus());
+    }
+  }
+
+  @Test
+  public void lockedClientBodyIsNotReadTest() {
+    var action = buildAction("secret", Map.of("user", "password"), null);
+    for (int i = 0; i < BasicAuthenticate.MAX_FAILED_LOGINS; i++) login(action, "1.2.3.4", "wrong");
+    var request = untouchableBody(action, "POST", "application/x-www-form-urlencoded");
+    request.setRemoteAddr("1.2.3.4");
+    var response = new TestResponse();
+    action.run(request, response, null);
+    assertEquals(429, response.getStatus());
+  }
+
+  @Test
+  public void onlyLoginAttemptsAreLimitedTest() {
+    var action = buildAction("secret", Map.of("user", "password"), null);
+    for (int i = 0; i < BasicAuthenticate.MAX_FAILED_LOGINS; i++) login(action, "1.2.3.4", "wrong");
+    var request = TestRequest.fromUrl("http://anything/");
+    request.setRemoteAddr("1.2.3.4");
+    var response = new TestResponse();
+    action.run(request, response, null);
+    assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.getStatus(), "The login form is still shown");
+  }
+
+  @Test
+  public void ipv6ClientsAreCountedBy64Test() {
+    assertEquals("2001:db8:1:2::/64", BasicAuthenticate.getRateLimiterKey("2001:db8:1:2:aaaa::1"));
+    assertEquals("2001:db8:1:2::/64", BasicAuthenticate.getRateLimiterKey("2001:0DB8:0001:0002:ffff:ffff:ffff:ffff"));
+    assertEquals("0:0:0:0::/64", BasicAuthenticate.getRateLimiterKey("::1"));
+    assertEquals("1.2.3.4", BasicAuthenticate.getRateLimiterKey("1.2.3.4"));
+    assertEquals("1.2.3.4", BasicAuthenticate.getRateLimiterKey("::ffff:1.2.3.4"), "IPv4-mapped is IPv4");
+
+    var action = buildAction("secret", Map.of("user", "password"), null);
+    for (int i = 0; i < BasicAuthenticate.MAX_FAILED_LOGINS; i++) login(action, "2001:db8:1:2::" + (i + 1), "wrong");
+    assertEquals(429, login(action, "2001:db8:1:2::ff", "password").getStatus(), "Same /64");
+    assertEquals(HttpServletResponse.SC_FOUND, login(action, "2001:db8:1:3::1", "password").getStatus(), "Other /64");
+  }
+
   @Test
   public void badConfigTest() throws ConfigurationException {
     var action = new BasicAuthenticate();

@@ -167,6 +167,32 @@ public class Config {
     return false;
   }
 
+  /**
+   * The address of the client, as opposed to the one of a trusted proxy in front of HFS: when the peer is a trusted
+   * proxy, <code>X-Forwarded-For</code> is walked from the right, skipping trusted proxies.
+   * @param remoteAddr The address of the peer.
+   * @param forwardedFor The values of the <code>X-Forwarded-For</code> headers, in order.
+   * @return The first address that is not a trusted proxy. If an entry is not an IP address, the address of the
+   * trusted proxy that added it. If all are trusted proxies, the leftmost one.
+   */
+  public String resolveClientAddr(String remoteAddr, List<String> forwardedFor) {
+    String client = remoteAddr;
+    if (!isTrustedProxy(client)) return client;
+    List<String> entries = new ArrayList<>();
+    for (String value : forwardedFor) {
+      for (String entry : value.split(",")) {
+        if (!entry.isBlank()) entries.add(entry.trim());
+      }
+    }
+    for (int i = entries.size() - 1; i >= 0; i--) {
+      String entry = entries.get(i);
+      if (IpRange.parseAddress(entry) == null) return client;
+      client = entry;
+      if (!isTrustedProxy(client)) return client;
+    }
+    return client;
+  }
+
   public TomcatConfig getTomcatConfig() {
     return tomcatConfig;
   }

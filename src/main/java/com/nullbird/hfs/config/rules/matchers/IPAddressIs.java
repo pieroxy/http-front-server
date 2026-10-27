@@ -9,8 +9,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * This matcher will check the IP address from which the http request was launched for equality. Note: The http header
- * <code>X-Forwarded-For</code> and others alike are not covered by this matcher.
+ * This matcher will check the IP address from which the http request was launched for equality. When HFS is behind
+ * one of the {@link com.nullbird.hfs.config.Config#trustedProxies}, this is the client address it forwarded in
+ * <code>X-Forwarded-For</code>. Otherwise, <code>X-Forwarded-For</code> and other headers alike are ignored.
  */
 public class IPAddressIs implements RuleMatcher {
   private final static Logger LOGGER = Logger.getLogger(IPAddressIs.class.getName());
@@ -21,8 +22,8 @@ public class IPAddressIs implements RuleMatcher {
 
   @Override
   public boolean match(HttpRequest request) {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Matching " + request.getRemoteAddr());
-    return request.getRemoteAddr().equals(ipAddress);
+    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("Matching " + request.getClientAddr());
+    return request.getClientAddr().equals(ipAddress);
   }
 
   @Override

@@ -58,9 +58,10 @@ public class IpRange {
   }
 
   /**
-   * @return The 4 or 16 bytes of the address, or null if it is not an IP literal.
+   * @return The 4 or 16 bytes of the address, or null if it is not an IP literal. IPv4-mapped IPv6 addresses
+   * give 4 bytes.
    */
-  private static byte[] parseAddress(String address) {
+  public static byte[] parseAddress(String address) {
     // InetAddress.getByName would resolve host names: only hand it strings that can only be literals
     if (!IPV4.matcher(address).matches() && !IPV6.matcher(address).matches()) return null;
     try {

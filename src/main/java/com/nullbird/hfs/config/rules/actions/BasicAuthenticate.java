@@ -5,6 +5,8 @@ import com.nullbird.hfs.utils.config.RuleAction;
 import com.nullbird.hfs.utils.config.RuleMatcher;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
+import com.nullbird.hfs.utils.IpRange;
+import com.nullbird.hfs.utils.RateLimiter;
 import com.nullbird.hfs.utils.StringUtils;
 import com.nullbird.hfs.utils.errors.BodyTooLargeException;
 import com.nullbird.hfs.utils.errors.ConfigurationException;
@@ -25,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,6 +47,12 @@ public class BasicAuthenticate implements RuleAction {
   private static final String HMAC_ALGORITHM = "HmacSHA256";
   /** The login form only carries a login, a password and the target URL */
   static final int MAX_LOGIN_BODY_BYTES = 16 * 1024;
+  /** Failed logins allowed per client address within {@link #FAILED_LOGIN_WINDOW_MS}, before a 429 */
+  static final int MAX_FAILED_LOGINS = 5;
+  static final long FAILED_LOGIN_WINDOW_MS = TimeUnit.MINUTES.toMillis(5);
+  /** Client addresses tracked at once: beyond, new addresses get a 429 until the window frees some */
+  static final int MAX_TRACKED_CLIENTS = 100_000;
+  static final String MSG_TOO_MANY_FAILED_LOGINS = "Too many failed login attempts. Please retry later.";
   public final String AUTH_LOGIN=this.getClass().getName() + ".login";
   public final String AUTH_PASSWORD=this.getClass().getName() + ".password";
   public final String AUTH_REDIRECT=this.getClass().getName() + ".target";
@@ -76,6 +85,7 @@ public class BasicAuthenticate implements RuleAction {
   int cookieDurationInHours = 24*365;
 
   private byte[] cookieKey;
+  private transient RateLimiter failedLogins;
 
 
   @Override
@@ -90,6 +100,14 @@ public class BasicAuthenticate implements RuleAction {
     if (!isLoginAttempt(request)) {
       if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Request needs authentication - " + request.getUrl());
       showLoginPrompt(request, response);
+      return;
+    }
+    String client = getRateLimiterKey(request.getClientAddr());
+    try {
+      failedLogins.check(client);
+    } catch (RateLimiter.RateExceededException e) {
+      if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Too many failed logins from " + client + " - " + request.getUrl());
+      respondTooManyFailedLogins(response, e.getRetryAfterMillis());
       return;
     }
     try {
@@ -109,11 +127,19 @@ public class BasicAuthenticate implements RuleAction {
         if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authenticating the request - " + request.getUrl());
         if (Objects.equals(credentials.get(login), password)) {
           if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authentication successful - " + request.getUrl());
+          failedLogins.reset(client);
           // Authenticating the user
           authenticate(login, password, response);
           response.sendRedirect(HttpServletResponse.SC_FOUND, target);
         } else {
-          if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Authentication failed - " + request.getUrl());
+          if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Authentication failed for " + client + " - " + request.getUrl());
+          failedLogins.hit(client);
+          try {
+            failedLogins.check(client);
+          } catch (RateLimiter.RateExceededException e) {
+            LOGGER.warning("Too many failed logins from " + client + ", refusing its login attempts for "
+                + TimeUnit.MILLISECONDS.toSeconds(e.getRetryAfterMillis()) + "s - " + request.getUrl());
+          }
           failLogin(request, target, response);
         }
       } else {
@@ -128,6 +154,27 @@ public class BasicAuthenticate implements RuleAction {
       if (LOGGER.isLoggable(Level.INFO)) LOGGER.log(Level.INFO, "Request failed decoding and thus needs authentication - " + request.getUrl(), e);
       showLoginPrompt(request, response);
     }
+  }
+
+  /**
+   * IPv6 clients are counted by /64, since a single client typically has a whole /64 to pick addresses from.
+   * IPv4 addresses are in dotted form, IPv4-mapped IPv6 ones (<code>::ffff:1.2.3.4</code>) included.
+   */
+  static String getRateLimiterKey(String clientAddr) {
+    byte[] bytes = IpRange.parseAddress(clientAddr);
+    if (bytes == null) return clientAddr;
+    if (bytes.length == 4) return (bytes[0] & 0xFF) + "." + (bytes[1] & 0xFF) + "." + (bytes[2] & 0xFF) + "." + (bytes[3] & 0xFF);
+    var key = new StringBuilder();
+    for (int i = 0; i < 8; i += 2) {
+      key.append(Integer.toHexString(((bytes[i] & 0xFF) << 8) | (bytes[i + 1] & 0xFF))).append(':');
+    }
+    return key.append(":/64").toString();
+  }
+
+  private static void respondTooManyFailedLogins(HttpResponse response, long retryAfterMillis) {
+    // Rounded up: retrying earlier would be refused again
+    response.addHeader(HttpHeaders.RETRY_AFTER, String.valueOf((retryAfterMillis + 999) / 1000));
+    response.respond(429, ContentType.TEXT_HTML, StringUtils.getHtmlErrorMessage(MSG_TOO_MANY_FAILED_LOGINS));
   }
 
   /**
@@ -255,6 +302,7 @@ public class BasicAuthenticate implements RuleAction {
     }
     // One key per cookie name, so that a cookie delivered for one cookie name is useless for another.
     cookieKey = hmac(config.getHfsAuthSecret().getBytes(StandardCharsets.UTF_8), "BasicAuthenticate.cookie:" + cookieName);
+    failedLogins = new RateLimiter(FAILED_LOGIN_WINDOW_MS, MAX_FAILED_LOGINS, MAX_TRACKED_CLIENTS);
     if (credentials == null) credentials = new HashMap<>();
     if (StringUtils.containsNonWhitespace(credentialsFile)) {
       Properties properties = new Properties();

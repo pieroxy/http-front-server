@@ -157,6 +157,14 @@ public class TestRequest implements HttpRequest {
     url = StringUtils.replaceHost(url, host);
   }
 
+  /**
+   * No trusted proxy in tests: the peer is the client.
+   */
+  @Override
+  public String getClientAddr() {
+    return remoteAddr;
+  }
+
   public void setRemoteAddr(String remoteAddr) {
     this.remoteAddr = remoteAddr;
   }

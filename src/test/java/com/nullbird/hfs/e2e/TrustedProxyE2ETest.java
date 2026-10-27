@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith({BeforeAllTests.class})
 public class TrustedProxyE2ETest {
+  /** Not the address of SPOOFED_FORWARDING_HEADERS, whose requests must reach the backend */
+  private static final String IP_MATCHED = "matched 9.9.9.9";
   private RawBackend backend;
   private HfsTestServer hfs;
   private RawClient client;
@@ -33,12 +35,16 @@ public class TrustedProxyE2ETest {
           "trustedProxies": ["127.0.0.0/8", "::1"],
           "rules": [
             {
+              "matcher": {"type": "IPAddressIs", "ipAddress": "9.9.9.9"},
+              "action": {"type": "RespondLiteral", "contentType": "text/plain", "content": "%s"}
+            },
+            {
               "matcher": {"type": "All"},
               "action": {"type": "ReverseProxy", "target": "http://localhost:%d"}
             }
           ]
         }
-        """.formatted(backend.getPort()));
+        """.formatted(IP_MATCHED, backend.getPort()));
     client = new RawClient(hfs.getPort());
   }
 
@@ -67,6 +73,15 @@ public class TrustedProxyE2ETest {
           String name = h.substring(0, h.indexOf(':'));
           assertEquals(List.of(h.substring(h.indexOf(':') + 1).trim()), headers.getAll(name), name);
         })));
+  }
+
+  @Test
+  public void ipAddressIsSeesTheForwardedClientTest() throws Exception {
+    assertEquals(IP_MATCHED, client.get("/", List.of("X-Forwarded-For: 9.9.9.9")).bodyAsString());
+    // Appended by a trusted proxy (127.0.0.2) in front of the test client
+    assertEquals(IP_MATCHED, client.get("/", List.of("X-Forwarded-For: 1.1.1.1, 9.9.9.9, 127.0.0.2")).bodyAsString());
+    // Spoofed on the left by the client itself
+    assertNotEquals(IP_MATCHED, client.get("/", List.of("X-Forwarded-For: 9.9.9.9, 1.1.1.1")).bodyAsString());
   }
 
   @Test

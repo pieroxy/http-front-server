@@ -1,6 +1,7 @@
 package com.nullbird.hfs.http;
 
 import com.nullbird.hfs.bootstrap.ClientAborterValve;
+import com.nullbird.hfs.config.Config;
 import com.nullbird.hfs.utils.StringUtils;
 import com.nullbird.hfs.utils.errors.BodyTooLargeException;
 import jakarta.servlet.AsyncContext;
@@ -27,16 +28,20 @@ public class ServletHttpRequest implements HttpRequest {
   private final ClientAborter aborter;
   private String host;
   private final String path;
+  private final Config config;
+  private String clientAddr;
   private String url = null;
 
   private Map<String, String> postFormData;
 
   /**
    * @param path The normalized path of the request, see {@link com.nullbird.hfs.utils.PathNormalizer}
+   * @param config Gives the trusted proxies.
    */
-  public ServletHttpRequest(HttpServletRequest request, HttpServletResponse response, String path) {
+  public ServletHttpRequest(HttpServletRequest request, HttpServletResponse response, String path, Config config) {
     this.request = request;
     this.path = path;
+    this.config = config;
     this.aborter = (ClientAborter) request.getAttribute(ClientAborterValve.ATTRIBUTE);
     this.response = new ServletHttpResponse(response, aborter);
     this.host = request.getHeader(HttpHeaders.HOST);
@@ -88,6 +93,14 @@ public class ServletHttpRequest implements HttpRequest {
   public String getRemoteAddr() {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getRemoteAddr() :: " + request.getRemoteAddr());
     return request.getRemoteAddr();
+  }
+
+  @Override
+  public String getClientAddr() {
+    if (clientAddr == null) {
+      clientAddr = config.resolveClientAddr(request.getRemoteAddr(), Collections.list(request.getHeaders("X-Forwarded-For")));
+    }
+    return clientAddr;
   }
 
   @Override

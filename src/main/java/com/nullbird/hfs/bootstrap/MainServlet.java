@@ -52,7 +52,7 @@ public class MainServlet extends HttpServlet {
         res.getOutputStream().write(StringUtils.getHtmlErrorMessage(MSG_INVALID_PATH).getBytes(StandardCharsets.UTF_8));
         return;
       }
-      process(new ServletHttpRequest(req, res, path), config);
+      process(new ServletHttpRequest(req, res, path, config), config);
     } finally {
       nbRequestsInFlight.decrementAndGet();
     }

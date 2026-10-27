@@ -23,7 +23,16 @@ public interface HttpRequest {
   Enumeration<String> getHeaderNames();
   Enumeration<String> getHeaders(String name);
 
+  /**
+   * @return The address of the peer: a trusted proxy, if HFS is behind one. See {@link #getClientAddr()}.
+   */
   String getRemoteAddr();
+
+  /**
+   * @return The address of the client, as forwarded by the trusted proxies if the peer is one.
+   * @see com.nullbird.hfs.config.Config#resolveClientAddr
+   */
+  String getClientAddr();
   void setHost(String host);
 
   String getScheme();
