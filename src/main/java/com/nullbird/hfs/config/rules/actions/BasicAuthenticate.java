@@ -55,7 +55,6 @@ public class BasicAuthenticate implements RuleAction {
   static final String MSG_TOO_MANY_FAILED_LOGINS = "Too many failed login attempts. Please retry later.";
   public final String AUTH_LOGIN=this.getClass().getName() + ".login";
   public final String AUTH_PASSWORD=this.getClass().getName() + ".password";
-  public final String AUTH_REDIRECT=this.getClass().getName() + ".target";
 
   /**
    * The file name for the credentials. The format is <a href="https://en.wikipedia.org/wiki/.properties">properties</a>
@@ -113,23 +112,23 @@ public class BasicAuthenticate implements RuleAction {
       Map<String, String> postData = request.decodeSimpleXWWWFormUrlEncodedPostData(MAX_LOGIN_BODY_BYTES);
       String login = postData.get(AUTH_LOGIN);
       String password = postData.get(AUTH_PASSWORD);
-      String target = postData.get(AUTH_REDIRECT);
 
       if (LOGGER.isLoggable(Level.FINER)) {
         LOGGER.finer("login " + login);
         LOGGER.finer("password null " + (password == null));
-        LOGGER.finer("target " + target);
         LOGGER.finer("method " + request.getMethod());
       }
 
-      if (login != null && password != null && target != null) {
+      if (login != null && password != null) {
         if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authenticating the request - " + request.getUrl());
         if (Objects.equals(credentials.get(login), password)) {
           if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Authentication successful - " + request.getUrl());
           failedLogins.reset(client);
           // Authenticating the user
           authenticate(login, password, response);
-          response.sendRedirect(HttpServletResponse.SC_FOUND, target);
+          // The login form posts to the URL it was shown on: back to it, as a GET. Relative, so it cannot leave
+          // the site.
+          response.sendRedirect(HttpServletResponse.SC_FOUND, request.getPath());
         } else {
           if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("Authentication failed for " + client + " - " + request.getUrl());
           var afterFailure = failedLogins.hit(client);
@@ -137,7 +136,7 @@ public class BasicAuthenticate implements RuleAction {
             LOGGER.warning("Too many failed logins from " + client + ", refusing its login attempts for "
                 + TimeUnit.MILLISECONDS.toSeconds(afterFailure.retryAfterMillis()) + "s - " + request.getUrl());
           }
-          failLogin(request, target, response);
+          failLogin(response);
         }
       } else {
         if (LOGGER.isLoggable(DEBUG_LEVEL)) LOGGER.log(DEBUG_LEVEL, "Request needs authentication - " + request.getUrl());
@@ -186,15 +185,18 @@ public class BasicAuthenticate implements RuleAction {
     return mimeType.equalsIgnoreCase("application/x-www-form-urlencoded");
   }
 
-  private void failLogin(HttpRequest request, String target, HttpResponse response) {
-    sendLoginForm(response, target, "Authentication failed");
+  private void failLogin(HttpResponse response) {
+    sendLoginForm(response, "Authentication failed");
   }
 
   private void showLoginPrompt(HttpRequest request, HttpResponse response) {
-    sendLoginForm(response, request.getUrl(), "You need to authenticate to move forward.");
+    sendLoginForm(response, "You need to authenticate to move forward.");
   }
 
-  private void sendLoginForm(HttpResponse response, String redirect, String message) {
+  /**
+   * The form has no <code>action</code>: it posts to the URL it is shown on, query string included.
+   */
+  private void sendLoginForm(HttpResponse response, String message) {
     String html = String.format("""
             <html>
               <head>
@@ -234,13 +236,12 @@ public class BasicAuthenticate implements RuleAction {
                     <label>Password: <input type="password" name="%s"></label><br>
                   </right>
                   <center>
-                    <input type="hidden" name="%s" value="%s">
                     <input type="submit" value="OK">
                   </center>
                 </form>
               </body>
             </html>
-            """, message, AUTH_LOGIN, AUTH_PASSWORD, AUTH_REDIRECT, StringUtils.formatForHTML(redirect));
+            """, message, AUTH_LOGIN, AUTH_PASSWORD);
     response.respond(HttpServletResponse.SC_UNAUTHORIZED, ContentType.TEXT_HTML, html);
   }
 

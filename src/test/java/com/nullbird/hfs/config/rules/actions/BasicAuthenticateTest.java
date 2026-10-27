@@ -179,17 +179,18 @@ public class BasicAuthenticateTest {
   @Test
   public void authenticateTest() {
     var action = buildAction("secret", Map.of("user", "password"), null);
-    var request = TestRequest.fromUrl("http://anything/");
+    var request = TestRequest.fromUrl("http://anything/protected/page?a=1&b=2");
     request.setMethod("POST");
     request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of("application/x-www-form-urlencoded"));
     request.getPostData().put(action.AUTH_LOGIN, "user");
     request.getPostData().put(action.AUTH_PASSWORD, "password");
-    request.getPostData().put(action.AUTH_REDIRECT, "http://success");
+    // Older forms had this field: it must be ignored
+    request.getPostData().put(BasicAuthenticate.class.getName() + ".target", "https://evil.example/");
     var response = new TestResponse();
     action.run(request, response, null);
     assertEquals(HttpServletResponse.SC_FOUND, response.getStatus());
     assertNotNull(response.getCookie(action.cookieName));
-    assertEquals("http://success", response.getHeaders().get(HttpHeaders.LOCATION));
+    assertEquals("/protected/page?a=1&b=2", response.getHeaders().get(HttpHeaders.LOCATION), "Back to the page, relative");
 
     // The delivered cookie must authenticate the next request
     var next = runWithCookie(action, action.cookieName, response.getCookie(action.cookieName).getValue());
@@ -205,7 +206,6 @@ public class BasicAuthenticateTest {
     request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of("application/x-www-form-urlencoded"));
     request.getPostData().put(action.AUTH_LOGIN, "user");
     request.getPostData().put(action.AUTH_PASSWORD, "password2");
-    request.getPostData().put(action.AUTH_REDIRECT, "http://success");
     var response = new TestResponse();
     action.run(request, response, null);
     assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.getStatus());
@@ -258,7 +258,6 @@ public class BasicAuthenticateTest {
     request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of(" Application/X-WWW-Form-Urlencoded ; charset=UTF-8"));
     request.getPostData().put(action.AUTH_LOGIN, "user");
     request.getPostData().put(action.AUTH_PASSWORD, "password");
-    request.getPostData().put(action.AUTH_REDIRECT, "http://success");
     var response = new TestResponse();
     action.run(request, response, null);
     assertEquals(HttpServletResponse.SC_FOUND, response.getStatus());
@@ -292,7 +291,6 @@ public class BasicAuthenticateTest {
     request.getHeaders().put(HttpHeaders.CONTENT_TYPE, List.of("application/x-www-form-urlencoded"));
     request.getPostData().put(action.AUTH_LOGIN, "user");
     request.getPostData().put(action.AUTH_PASSWORD, password);
-    request.getPostData().put(action.AUTH_REDIRECT, "http://success");
     var response = new TestResponse();
     action.run(request, response, null);
     return response;

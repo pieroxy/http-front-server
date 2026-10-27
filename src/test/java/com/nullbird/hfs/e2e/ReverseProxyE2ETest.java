@@ -508,7 +508,7 @@ public class ReverseProxyE2ETest {
   private static final List<String> FORM = List.of("Content-Type: application/x-www-form-urlencoded");
 
   private static byte[] loginBody(String password, int padding) {
-    return (AUTH_FIELD + "login=user&" + AUTH_FIELD + "password=" + password + "&" + AUTH_FIELD + "target=/done&pad="
+    return (AUTH_FIELD + "login=user&" + AUTH_FIELD + "password=" + password + "&pad="
         + "x".repeat(padding)).getBytes(StandardCharsets.UTF_8);
   }
 
@@ -517,9 +517,9 @@ public class ReverseProxyE2ETest {
     byte[] body = loginBody("password", 0);
     var headers = new ArrayList<>(FORM);
     headers.add("Content-Length: " + body.length);
-    var response = client.send("POST", "/", HOST_AUTH, headers, body);
+    var response = client.send("POST", "/protected/page?a=1", HOST_AUTH, headers, body);
     assertEquals(302, response.status, response.toString());
-    assertEquals("/done", response.headers.get("Location"));
+    assertEquals("/protected/page?a=1", response.headers.get("Location"), "Back to the page, relative");
     assertTrue(response.headers.get("Set-Cookie").startsWith("com.nullbird.hfs.config.rules.actions.BasicAuthenticate="));
     assertEquals(0, backend.getReceived().size());
   }
