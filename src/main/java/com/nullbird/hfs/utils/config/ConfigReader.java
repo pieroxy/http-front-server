@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.nullbird.hfs.config.Config;
+import com.nullbird.hfs.config.PathParametersHandling;
 import com.nullbird.hfs.config.rules.Rule;
 import com.nullbird.hfs.config.rules.actions.BasicAuthenticate;
 import com.nullbird.hfs.utils.HashTools;
@@ -56,6 +57,12 @@ public class ConfigReader {
     }
 
     if (config.getRules()==null || config.getRules().size()==0) throw new ConfigurationException("Config file must have at least one rule");
+    // Gson sets unknown enum values to null
+    if (config.getPathParameters()==null) throw new ConfigurationException("pathParameters must be one of: reject, strip, keep");
+    if (config.getPathParameters()==PathParametersHandling.KEEP) {
+      LOGGER.warning("pathParameters is 'keep': rules on URLs can be bypassed with path parameters (/admin;x) " +
+          "for backends that ignore them.");
+    }
     ensureAuthSecret(config);
     for (Rule rule : config.getRules()) {
       rule.init(config);

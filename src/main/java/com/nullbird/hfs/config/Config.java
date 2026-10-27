@@ -56,6 +56,18 @@ public class Config {
    */
   protected String hfsAuthSecret;
 
+  /**
+   * What to do with path parameters (<code>/admin;x</code>): <code>reject</code> answers with a 400,
+   * <code>strip</code> removes them (<code>/admin;x/a</code> becomes <code>/admin/a</code>) for the matchers as
+   * well as for the backends, <code>keep</code> leaves them as-is.
+   * <br>Many backends (Tomcat, Jetty, Spring...) ignore path parameters when routing, while the matchers do not:
+   * with <code>keep</code>, <code>/admin;x</code> does not match a rule on <code>/admin</code> but is served as
+   * <code>/admin</code> by such backends.
+   * <br>Defaults to <b>reject</b>. An encoded semicolon (<code>%3B</code>) is not a path parameter and is always
+   * accepted.
+   */
+  protected PathParametersHandling pathParameters = PathParametersHandling.REJECT;
+
   public List<Rule> getRules() {
     return rules;
   }
@@ -94,6 +106,17 @@ public class Config {
 
   public void setHfsAuthSecret(String hfsAuthSecret) {
     this.hfsAuthSecret = hfsAuthSecret;
+  }
+
+  /**
+   * @return null if the configuration file holds an unknown value.
+   */
+  public PathParametersHandling getPathParameters() {
+    return pathParameters;
+  }
+
+  public void setPathParameters(PathParametersHandling pathParameters) {
+    this.pathParameters = pathParameters;
   }
 
   public TomcatConfig getTomcatConfig() {

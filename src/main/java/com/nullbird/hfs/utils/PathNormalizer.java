@@ -1,5 +1,6 @@
 package com.nullbird.hfs.utils;
 
+import com.nullbird.hfs.config.PathParametersHandling;
 import com.nullbird.hfs.utils.errors.InvalidPathException;
 
 import java.nio.charset.StandardCharsets;
@@ -13,7 +14,8 @@ import java.util.Deque;
  *   <li>Other percent-encodings are kept, with uppercase hex digits (<code>%c3</code> becomes <code>%C3</code>)</li>
  *   <li>Dot-segments are resolved (<code>/a/../b</code> becomes <code>/b</code>)</li>
  *   <li>Empty segments are merged (<code>/a//b</code> becomes <code>/a/b</code>), the trailing slash is kept</li>
- *   <li>Everything else, path parameters included, is kept as sent</li>
+ *   <li>Path parameters (<code>/a;x/b</code>) are handled as configured, see {@link PathParametersHandling}</li>
+ *   <li>Everything else is kept as sent</li>
  * </ul>
  * The result is both what the matchers see and what is sent to the backends, so they cannot disagree.
  */
@@ -23,12 +25,17 @@ public class PathNormalizer {
 
   /**
    * @param rawPath The path as sent by the client, without the query string.
+   * @param pathParameters What to do with path parameters.
    * @return The normalized path. A path not starting with <code>/</code> (ex: <code>*</code>) is returned as-is.
-   * @throws InvalidPathException if the path goes above the root, has a malformed percent-encoding, or has path
-   * parameters on a dot-segment (<code>/..;x/</code>), which some backends would resolve as a dot-segment.
+   * @throws InvalidPathException if the path goes above the root, has a malformed percent-encoding, has path
+   * parameters while they are rejected, or has path parameters on a dot-segment (<code>/..;x/</code>) while they
+   * are kept, which some backends would resolve as a dot-segment.
    */
-  public static String normalize(String rawPath) throws InvalidPathException {
+  public static String normalize(String rawPath, PathParametersHandling pathParameters) throws InvalidPathException {
     if (rawPath == null || !rawPath.startsWith("/")) return rawPath;
+    if (pathParameters == PathParametersHandling.REJECT && rawPath.indexOf(';') >= 0) {
+      throw new InvalidPathException("Path parameters are not allowed: " + rawPath);
+    }
 
     String[] segments = rawPath.substring(1).split("/", -1);
     Deque<String> output = new ArrayDeque<>();
@@ -37,6 +44,10 @@ public class PathNormalizer {
       boolean last = i == segments.length - 1;
       String segment = normalizeEncoding(segments[i], rawPath);
       int semicolon = segment.indexOf(';');
+      if (semicolon >= 0 && pathParameters == PathParametersHandling.STRIP) {
+        segment = segment.substring(0, semicolon);
+        semicolon = -1;
+      }
       String name = semicolon < 0 ? segment : segment.substring(0, semicolon);
 
       if (name.equals(".") || name.equals("..")) {

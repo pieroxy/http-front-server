@@ -187,7 +187,7 @@ public class ReverseProxyE2ETest {
         {"/%41%7e", "/A~"},
         {"/a@b:c=d,e~f!g$h&i'(k)*+l", "/a@b:c=d,e~f!g$h&i'(k)*+l"},
         {"/a+b", "/a+b"},
-        {"/a;jsessionid=X/b", "/a;jsessionid=X/b"},
+        {"/a%3Bb", "/a%3Bb"},
         {"/a%25b", "/a%25b"},
         {"/a%3Fb", "/a%3Fb"},
         {"/a%23b", "/a%23b"},
@@ -211,7 +211,8 @@ public class ReverseProxyE2ETest {
   @Test
   public void invalidPathsAreRejectedTest() {
     List<Executable> checks = new ArrayList<>();
-    for (String path : List.of("/../a", "/a%2Fb", "/a/..;x/b", "/a/.;x/b", "/a/%2e%2e;x/b", "/..;/a")) {
+    for (String path : List.of("/../a", "/a%2Fb", "/a/..;x/b", "/a/.;x/b", "/a/%2e%2e;x/b", "/..;/a",
+        "/admin;x", "/admin;x/y", "/a;jsessionid=X/b")) {
       checks.add(() -> {
         backend.reset();
         var response = client.get(path);

@@ -41,9 +41,10 @@ public class MainServlet extends HttpServlet {
       // read the body through a req.getParameter family of methods.
       req.getInputStream();
 
+      Config config = ConfigReader.getConfig();
       String path;
       try {
-        path = PathNormalizer.normalize(req.getRequestURI());
+        path = PathNormalizer.normalize(req.getRequestURI(), config.getPathParameters());
       } catch (InvalidPathException e) {
         LOGGER.info("Rejected: " + e.getMessage());
         res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -51,7 +52,7 @@ public class MainServlet extends HttpServlet {
         res.getOutputStream().write(StringUtils.getHtmlErrorMessage(MSG_INVALID_PATH).getBytes(StandardCharsets.UTF_8));
         return;
       }
-      process(new ServletHttpRequest(req, res, path), ConfigReader.getConfig());
+      process(new ServletHttpRequest(req, res, path), config);
     } finally {
       nbRequestsInFlight.decrementAndGet();
     }

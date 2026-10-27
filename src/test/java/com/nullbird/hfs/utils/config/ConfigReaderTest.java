@@ -1,6 +1,8 @@
 package com.nullbird.hfs.utils.config;
 
 import com.google.gson.JsonParser;
+import com.nullbird.hfs.config.PathParametersHandling;
+import com.nullbird.hfs.utils.errors.ConfigurationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -57,6 +59,18 @@ public class ConfigReaderTest {
     ConfigReader.init(file.toString());
     assertEquals("mySecret", ConfigReader.getConfig().getHfsAuthSecret());
     assertEquals(json, Files.readString(file, StandardCharsets.UTF_8));
+  }
+
+  @Test
+  public void pathParametersTest(@TempDir Path dir) throws Exception {
+    ConfigReader.init(write(dir, "{\"rules\":[" + LITERAL_RULE + "]}").toString());
+    assertEquals(PathParametersHandling.REJECT, ConfigReader.getConfig().getPathParameters(), "Default");
+    ConfigReader.init(write(dir, "{\"pathParameters\":\"strip\",\"rules\":[" + LITERAL_RULE + "]}").toString());
+    assertEquals(PathParametersHandling.STRIP, ConfigReader.getConfig().getPathParameters());
+    ConfigReader.init(write(dir, "{\"pathParameters\":\"keep\",\"rules\":[" + LITERAL_RULE + "]}").toString());
+    assertEquals(PathParametersHandling.KEEP, ConfigReader.getConfig().getPathParameters());
+    assertThrows(ConfigurationException.class,
+        () -> ConfigReader.init(write(dir, "{\"pathParameters\":\"Strip\",\"rules\":[" + LITERAL_RULE + "]}").toString()));
   }
 
   @Test
