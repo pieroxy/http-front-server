@@ -1,13 +1,14 @@
 package utils;
 
 import com.nullbird.hfs.http.HttpResponse;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.Cookie;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpHeaders;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -71,14 +72,41 @@ public class TestResponse implements HttpResponse {
     status = statusCode;
   }
 
+  /**
+   * Can always be written to: a {@link WriteListener} is called back at once.
+   */
   @Override
-  public OutputStream getOutputStream() throws IOException {
-    return body;
-  }
+  public ServletOutputStream getOutputStream() throws IOException {
+    return new ServletOutputStream() {
+      @Override
+      public boolean isReady() {
+        return true;
+      }
 
-  @Override
-  public void flush() {
-    committed = true;
+      @Override
+      public void setWriteListener(WriteListener writeListener) {
+        try {
+          writeListener.onWritePossible();
+        } catch (IOException e) {
+          writeListener.onError(e);
+        }
+      }
+
+      @Override
+      public void write(int b) {
+        body.write(b);
+      }
+
+      @Override
+      public void write(byte[] b, int off, int len) {
+        body.write(b, off, len);
+      }
+
+      @Override
+      public void flush() {
+        committed = true;
+      }
+    };
   }
 
   @Override

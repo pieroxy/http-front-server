@@ -81,14 +81,16 @@ public class ReverseProxyImpl  {
         if (this.requestNumber==null) this.requestNumber = new AtomicInteger();
         requestNumber = this.requestNumber.getAndIncrement();
       }
+      // Before reading the body: non-blocking reads are only possible in async mode
+      HttpResponse asyncResponse = request.getAsyncResponse(response);
       AsyncRequestBuilder proxyRequestBuilder = buildProxyRequest(request);
 
       String transferEncoding = request.getHeader(HttpHeaders.TRANSFER_ENCODING);
       String contentLength = request.getHeader(HttpHeaders.CONTENT_LENGTH);
       if (transferEncoding != null) {
-        proxyRequestBuilder.setEntity(new ReverseProxyEntityProducer(null, request.getBodyStream(), -1));
+        proxyRequestBuilder.setEntity(new ReverseProxyEntityProducer(request.getBodyStream(), -1));
       } else if (contentLength != null) {
-        proxyRequestBuilder.setEntity(new ReverseProxyEntityProducer(null, request.getBodyStream(), Long.parseLong(contentLength.trim())));
+        proxyRequestBuilder.setEntity(new ReverseProxyEntityProducer(request.getBodyStream(), Long.parseLong(contentLength.trim())));
       }
 
       boolean fromTrustedProxy = config != null && config.isTrustedProxy(request.getRemoteAddr());
@@ -97,7 +99,7 @@ public class ReverseProxyImpl  {
       setXForwardedHeaders(request, proxyRequestBuilder, fromTrustedProxy);
 
       // Execute the request
-      doExecute(request, response, proxyRequestBuilder, requestNumber);
+      doExecute(request, asyncResponse, proxyRequestBuilder, requestNumber);
     } catch (ProxyException e) {
       throw e;
     } catch (Exception e) {
@@ -107,14 +109,13 @@ public class ReverseProxyImpl  {
     }
   }
 
-  private void doExecute(HttpRequest request, HttpResponse response, AsyncRequestBuilder proxyRequestBuilder, int requestNumber) throws ProxyException {
+  private void doExecute(HttpRequest request, HttpResponse asyncResponse, AsyncRequestBuilder proxyRequestBuilder, int requestNumber) throws ProxyException {
     var proxyRequest = proxyRequestBuilder.build();
     if (conf.isDumpAllRequests()) {
       String debugString = request.getUrl() + " >> " + proxyHost.toString();
       LOGGER.log(Level.INFO,"Request "+requestNumber+" running  " + debugString);
     }
     try {
-      HttpResponse asyncResponse = request.getAsyncResponse(response);
       new ReverseProxyHttpRequest(
               proxyRequest,
               new ReverseProxyResponseConsumer(asyncResponse, conf, requestNumber),
@@ -130,7 +131,7 @@ public class ReverseProxyImpl  {
     try {
       HttpClientContext context = HttpClientContext.create();
       context.setAttribute(CLIENT_SENT_USER_AGENT, request.isClientSentUserAgent());
-      this.__proxyClient.execute(
+      request.setExchange(this.__proxyClient.execute(
               request.getRequestProducer(),
               consumer,
               context,
@@ -149,7 +150,7 @@ public class ReverseProxyImpl  {
                 public void cancelled() {
                   consumer.exchangeCancelled();
                 }
-              });
+              }));
     } catch (Exception e) {
       consumer.exchangeFailed(e);
     }

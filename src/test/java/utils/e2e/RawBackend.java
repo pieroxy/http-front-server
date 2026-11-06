@@ -2,9 +2,11 @@ package utils.e2e;
 
 import java.io.BufferedInputStream;
 import java.io.Closeable;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -39,9 +41,22 @@ public class RawBackend implements Closeable {
   private final Set<Socket> sockets = ConcurrentHashMap.newKeySet();
   private volatile Handler handler = RawBackend::respondOk;
   private volatile boolean closed;
+  private volatile int throttleBytesPerRead;
+  private volatile long throttlePauseMs;
 
   public RawBackend() throws IOException {
-    server = new ServerSocket(0);
+    this(0);
+  }
+
+  /**
+   * @param receiveBufferSize The receive buffer of the accepted sockets, 0 for the system default. A small one
+   * makes the proxy feel a slow reader sooner, as less data is absorbed by the kernel.
+   */
+  public RawBackend(int receiveBufferSize) throws IOException {
+    server = new ServerSocket();
+    // Must be set before binding to apply to the accepted sockets
+    if (receiveBufferSize > 0) server.setReceiveBufferSize(receiveBufferSize);
+    server.bind(new InetSocketAddress(0));
     var acceptor = new Thread(this::acceptLoop, "RawBackend-acceptor");
     acceptor.setDaemon(true);
     acceptor.start();
@@ -56,10 +71,20 @@ public class RawBackend implements Closeable {
   }
 
   /**
-   * Restores the default handler and forgets the requests received so far.
+   * Makes the backend a slow reader: each read from the socket returns at most <code>bytesPerRead</code> bytes and
+   * is followed by a pause of <code>pauseMs</code>. Undone by {@link #reset()}.
+   */
+  public void setReadThrottle(int bytesPerRead, long pauseMs) {
+    throttlePauseMs = pauseMs;
+    throttleBytesPerRead = bytesPerRead;
+  }
+
+  /**
+   * Restores the default handler, stops throttling and forgets the requests received so far.
    */
   public void reset() {
     handler = RawBackend::respondOk;
+    throttleBytesPerRead = 0;
     received.clear();
   }
 
@@ -91,7 +116,7 @@ public class RawBackend implements Closeable {
 
   private void serve(Socket socket) {
     try (socket) {
-      InputStream in = new BufferedInputStream(socket.getInputStream());
+      InputStream in = new BufferedInputStream(new ThrottledInputStream(socket.getInputStream()));
       OutputStream out = socket.getOutputStream();
       while (!socket.isClosed()) {
         String requestLine = RawHttp.readLine(in);
@@ -116,6 +141,26 @@ public class RawBackend implements Closeable {
       // Connection closed by the proxy, or by a handler simulating a failure
     } finally {
       sockets.remove(socket);
+    }
+  }
+
+  private class ThrottledInputStream extends FilterInputStream {
+    ThrottledInputStream(InputStream in) {
+      super(in);
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+      int max = throttleBytesPerRead;
+      if (max <= 0) return super.read(b, off, len);
+      int read = super.read(b, off, Math.min(len, max));
+      try {
+        Thread.sleep(throttlePauseMs);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException(e);
+      }
+      return read;
     }
   }
 

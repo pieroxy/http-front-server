@@ -3,12 +3,13 @@ package utils;
 import com.nullbird.hfs.http.HttpRequest;
 import com.nullbird.hfs.http.HttpResponse;
 import com.nullbird.hfs.utils.StringUtils;
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.net.URIBuilder;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -179,9 +180,42 @@ public class TestRequest implements HttpRequest {
     return path;
   }
 
+  /**
+   * The whole body is always ready: a {@link ReadListener} is called back at once.
+   */
   @Override
-  public InputStream getBodyStream() throws IOException {
-    return new ByteArrayInputStream(bodyAsByteArray);
+  public ServletInputStream getBodyStream() throws IOException {
+    var input = new ByteArrayInputStream(bodyAsByteArray);
+    return new ServletInputStream() {
+      @Override
+      public boolean isFinished() {
+        return input.available() == 0;
+      }
+
+      @Override
+      public boolean isReady() {
+        return true;
+      }
+
+      @Override
+      public void setReadListener(ReadListener readListener) {
+        try {
+          if (isFinished()) readListener.onAllDataRead(); else readListener.onDataAvailable();
+        } catch (IOException e) {
+          readListener.onError(e);
+        }
+      }
+
+      @Override
+      public int read() {
+        return input.read();
+      }
+
+      @Override
+      public int read(byte[] b, int off, int len) {
+        return input.read(b, off, len);
+      }
+    };
   }
 
   public void setScheme(String scheme) {

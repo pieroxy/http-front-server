@@ -1,7 +1,8 @@
 package com.nullbird.hfs.http;
 
+import jakarta.servlet.ServletInputStream;
+
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +39,11 @@ public interface HttpRequest {
   String getScheme();
   String getPath();
 
-  InputStream getBodyStream() throws IOException;
+  /**
+   * Readable in blocking mode, or in non-blocking mode once the request is in async mode
+   * (see {@link #getAsyncResponse}).
+   */
+  ServletInputStream getBodyStream() throws IOException;
 
   HttpResponse getAsyncResponse(HttpResponse syncResponse);
 

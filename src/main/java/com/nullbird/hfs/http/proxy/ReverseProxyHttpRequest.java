@@ -3,6 +3,7 @@ package com.nullbird.hfs.http.proxy;
 import com.nullbird.hfs.http.HttpResponse;
 import org.apache.hc.core5.http.nio.AsyncRequestProducer;
 
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ReverseProxyHttpRequest {
@@ -17,6 +18,8 @@ public class ReverseProxyHttpRequest {
 
   private String debugInfos;
   private AtomicInteger attemptNo = new AtomicInteger();
+  /** The exchange of the current attempt */
+  private volatile Future<Void> exchange;
 
   public ReverseProxyHttpRequest(AsyncRequestProducer requestProducer, ReverseProxyResponseConsumer responseConsumer, ReverseProxyImpl proxy, HttpResponse asyncResponse, String sourceDebugString, String destinationDebugString, boolean clientSentUserAgent) {
     this.requestProducer = requestProducer;
@@ -66,5 +69,17 @@ public class ReverseProxyHttpRequest {
   public void run() {
     incAttemptNo();
     proxy.tryExecute(this);
+  }
+
+  void setExchange(Future<Void> exchange) {
+    this.exchange = exchange;
+  }
+
+  /**
+   * Cancels the exchange with the backend, if running: the backend connection is closed.
+   */
+  public void cancel() {
+    var exchange = this.exchange;
+    if (exchange != null) exchange.cancel(true);
   }
 }

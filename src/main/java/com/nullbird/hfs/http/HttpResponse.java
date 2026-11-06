@@ -1,11 +1,11 @@
 package com.nullbird.hfs.http;
 
 
+import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import org.apache.hc.core5.http.ContentType;
 
 import java.io.IOException;
-import java.io.OutputStream;
 
 public interface HttpResponse {
   void sendRedirect(int statusCode, String targetUrl);
@@ -24,12 +24,10 @@ public interface HttpResponse {
   void setStatus(int statusCode);
   int getStatus();
 
-  OutputStream getOutputStream() throws IOException;
-
   /**
-   * Sends to the client what has been written so far, committing the response if it was not already.
+   * Writable in blocking mode, or in non-blocking mode once in async mode (see {@link HttpRequest#getAsyncResponse}).
    */
-  void flush() throws IOException;
+  ServletOutputStream getOutputStream() throws IOException;
 
   /**
    * Closes the client connection without completing the response, so that the client sees it as failed.

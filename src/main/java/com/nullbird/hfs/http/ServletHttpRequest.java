@@ -5,6 +5,7 @@ import com.nullbird.hfs.config.Config;
 import com.nullbird.hfs.utils.StringUtils;
 import com.nullbird.hfs.utils.errors.BodyTooLargeException;
 import jakarta.servlet.AsyncContext;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -123,7 +124,7 @@ public class ServletHttpRequest implements HttpRequest {
   }
 
   @Override
-  public InputStream getBodyStream() throws IOException {
+  public ServletInputStream getBodyStream() throws IOException {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getBodyStream() :: not computing");
     return request.getInputStream();
   }

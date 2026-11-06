@@ -1,12 +1,12 @@
 package com.nullbird.hfs.http;
 
 import jakarta.servlet.AsyncContext;
+import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.ContentType;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,8 +47,11 @@ public class ServletHttpResponse implements HttpResponse {
     response.setStatus(statusCode);
     response.setContentType(contentType.toString());
     response.setCharacterEncoding("UTF-8");
+    byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+    // The client knows the response is complete without waiting for the end of the connection
+    response.setContentLength(bytes.length);
     try {
-      response.getOutputStream().write(content.getBytes(StandardCharsets.UTF_8));
+      response.getOutputStream().write(bytes);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -67,16 +70,10 @@ public class ServletHttpResponse implements HttpResponse {
   }
 
   @Override
-  public OutputStream getOutputStream() throws IOException {
+  public ServletOutputStream getOutputStream() throws IOException {
     if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("getOutputStream()");
     consumed = true;
     return response.getOutputStream();
-  }
-
-  @Override
-  public void flush() throws IOException {
-    if (LOGGER.isLoggable(Level.FINER)) LOGGER.finer("flush()");
-    response.flushBuffer();
   }
 
   @Override
