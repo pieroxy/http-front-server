@@ -318,7 +318,7 @@ public class BasicAuthenticate implements RuleAction {
 
   @Override
   public void stop() {
-    credentials.clear();
+    if (credentials != null) credentials.clear();
     credentials = null;
   }
 
