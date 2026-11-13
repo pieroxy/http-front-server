@@ -129,7 +129,7 @@ public class ServletHttpResponse implements HttpResponse {
     response.addHeader(name, value);
   }
 
-  HttpServletResponse getHttpServletResponse() {
+  public HttpServletResponse getHttpServletResponse() {
     return response;
   }
 

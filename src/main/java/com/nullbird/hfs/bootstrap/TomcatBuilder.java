@@ -61,7 +61,7 @@ public class TomcatBuilder {
     ctr.setProperty("compression", "on");
     ctr.setProperty("maxConnections", "1000");
     ctr.setProperty("compressionMinSize", "512");
-    ctr.setProperty("compressibleMimeType", "text/html, text/css, application/javascript, image/svg+xml, application/json");
+    ctr.setProperty("compressibleMimeType", "text/html, text/css, text/plain, text/javascript, application/javascript, image/svg+xml, application/json");
     ctr.setProperty("URIEncoding", "UTF-8");
   }
 

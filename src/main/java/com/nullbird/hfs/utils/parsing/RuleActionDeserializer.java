@@ -30,6 +30,8 @@ public class RuleActionDeserializer  implements JsonDeserializer<RuleAction> {
           return jsonDeserializationContext.deserialize(jsonElement, ReverseProxy.class);
         case "RespondLiteral":
           return jsonDeserializationContext.deserialize(jsonElement, RespondLiteral.class);
+        case "ServeStatic":
+          return jsonDeserializationContext.deserialize(jsonElement, ServeStatic.class);
 
         default:
           throw new RuntimeException("Unknown rule action node type " + nodeType);

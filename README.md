@@ -7,6 +7,7 @@ Java written http server, which can:
 * Password protect parts of your services
 * Handle your https stack and compression
 * Handle all your http redirections
+* Serve static files, single page applications included
 * Can hold requests while your backend restarts
 * And many more to come
 

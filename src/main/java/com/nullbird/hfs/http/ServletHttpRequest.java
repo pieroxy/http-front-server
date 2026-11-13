@@ -164,6 +164,10 @@ public class ServletHttpRequest implements HttpRequest {
     return response;
   }
 
+  public HttpServletRequest getHttpServletRequest() {
+    return request;
+  }
+
   @Override
   public Map<String, String> decodeSimpleXWWWFormUrlEncodedPostData(int maxBytes) throws IOException {
     if (postFormData == null) {
